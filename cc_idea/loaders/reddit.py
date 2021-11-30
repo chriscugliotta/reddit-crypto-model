@@ -22,9 +22,14 @@ def get_comments(q: str, start_date: datetime, end_date: datetime) -> DataFrame:
     # Log.
     log.debug(f'Begin with q = {q}, start_date = {start_date:%Y-%m-%d}, end_date = {end_date:%Y-%m-%d}.')
 
+    # Never load future dates.
+    # Never load current date, to prevent stale snapshot in cache.
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    end_date = min(end_date, today)
+
     # Load one day at a time.
     data = []
-    for i in range((end_date - start_date).days + 1):
+    for i in range((end_date - start_date).days):
         data += _get_comments_on_date(q, start_date + timedelta(days=i))
 
     # Convert responses into dataframes.
