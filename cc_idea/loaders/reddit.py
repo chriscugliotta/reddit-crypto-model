@@ -1,32 +1,91 @@
+import gzip
+import json
 import logging
 import pandas as pd
-import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from pandas import DataFrame
 from typing import Dict, List
+from cc_idea.core.config import paths
+from cc_idea.utils.request_utils import get_request
 log = logging.getLogger(__name__)
 
 
 
-def load_comments(q: str, start_date: datetime, end_date: datetime, max_iterations: int = 3600) -> List[Dict]:
+def get_comments(q: str, start_date: datetime, end_date: datetime) -> DataFrame:
+    """
+    Returns all comments posted between `start_date` and `end_date` mentioning the word `q`.
+
+    Note:
+        As a convenience, this function dumps all API responses into a singular dataframe.
+    """
+
+    # Log.
+    log.debug(f'Begin with q = {q}, start_date = {start_date:%Y-%m-%d}, end_date = {end_date:%Y-%m-%d}.')
+
+    # Load one day at a time.
+    data = []
+    for i in range((end_date - start_date).days + 1):
+        data += _get_comments_on_date(q, start_date + timedelta(days=i))
+
+    # Convert responses into dataframes.
+    frames = []
+    for result in data:
+        frame = pd.DataFrame(result['response']['json']['data'])
+        frames += [frame]
+
+    # Combine dataframes.
+    df = pd.concat(frames, ignore_index=True)
+
+    # Log, return.
+    log.debug(f'Done with q = {q}, start_date = {start_date:%Y-%m-%d}, end_date = {end_date:%Y-%m-%d}, rows = {df.shape[0]:,}.')
+    return df
+
+
+def _get_comments_on_date(q: str, target_date: datetime) -> List[Dict]:
+    """
+    Returns all comments posted on `target_date` mentioning the word `q`.
+
+    Note:
+        This function caches all API responses.  A separate local JSON file is created for every
+        `(target_date, q)` combination.  If a given request is already cached, we skip the API call
+        and return the cached result instead.
+    """
+
+    # Get cache path for upcoming request.
+    cache_path = paths.data / 'reddit_comments' / f'target_date={target_date.strftime("%Y-%m-%d")}' / f'q={q}' / '0.json.gz'
+    cached = cache_path.is_file()
+
+    # If result is not cached, hit the API and cache the result.
+    if not cached:
+        data = _load_comments(q, target_date, target_date + timedelta(days=1))
+        cache_path.parent.mkdir(parents=True)
+        with gzip.open(cache_path, 'wt') as file:
+            json.dump(data, file)
+
+    # Get result from cache.
+    with gzip.open(cache_path, 'rt') as file:
+        data = json.load(file)
+
+    # Log, return.
+    log.debug(f'Done with q = {q}, target_date = {target_date:%Y-%m-%d}, rows = {sum(x["response"]["rows"] for x in data):,}, cached = {cached}.')
+    return data
+
+
+def _load_comments(q: str, start_date: datetime, end_date: datetime, max_iterations: int = 3600) -> List[Dict]:
     """
     Iteratively queries the Pushshift API, and returns a list all comments posted between
     `start_date` and `end_date` mentioning the word `q`.
 
+    Note:
+        Pushshift will return (at most) 100 comments per request.  To overcome this limitation, we
+        must iteratively pull the data.  Each iteration, we slide our search window from left-to-
+        right, until the entire interval has been searched.
+
     References:
         Pushshift API:
         https://github.com/pushshift/api
-
-    TODO:
-        Add metadata to results, e.g. iteration number, request time, request params, etc.
-        Add caching logic.
-        Add dataframe conversion logic (handle empty responses).
     """
 
-    log.debug('Begin load_comments.')
-    log.debug(f'q = {q}.')
-    log.debug(f'start_date = {start_date}.')
-    log.debug(f'end_date = {end_date}.')
     results = []
     batch_min_date = start_date
 
@@ -41,12 +100,10 @@ def load_comments(q: str, start_date: datetime, end_date: datetime, max_iteratio
             'sort_type': 'created_utc',
             'sort': 'asc',
         }
-        request_time = datetime.now()
-        response = requests.get(url='https://api.pushshift.io/reddit/search/comment', params=params)
-        batch = response.json()['data']
+        result = get_request('https://api.pushshift.io/reddit/search/comment', params, i)
+        batch = result['response']['json']['data']
 
         # If batch is empty, our query is complete.
-        # TODO:  Return empty dataframe with proper columns?
         if len(batch) == 0:
             log.debug(f'i = {i}, batch = {len(batch)}, done.')
             return results
@@ -61,8 +118,16 @@ def load_comments(q: str, start_date: datetime, end_date: datetime, max_iteratio
         estimated_iterations = total_distance / distance_per_iteration
 
         # Add batch to results.
-        results.extend(batch)
-        log.debug(f'i = {i}, total = {len(results):,}, batch = {len(batch):,}, batch_min = {batch_min_date}, batch_max = {batch_max_date}, estimated = {estimated_iterations:.2f}.')
+        results.append(result)
+        log.debug('i = {}, total = {:,}, batch = {:,}, date = {}, batch_min = {}, batch_max = {}, estimated = {:.2f}'.format(
+            i,
+            sum(x['response']['rows'] for x in results),
+            len(batch),
+            batch_min_date.strftime('%Y-%m-%d'),
+            batch_min_date.strftime('%H:%M:%S'),
+            batch_max_date.strftime('%H:%M:%S'),
+            estimated_iterations,
+        ))
         i += 1
         batch_min_date = batch_max_date
 

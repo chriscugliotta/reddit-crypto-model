@@ -20,7 +20,7 @@ def initialize_logger(log_path: Path = None):
         'formatters': {
             'standard': {
                 'class': 'logging.Formatter',
-                'format': '%(asctime)s %(levelname)-8s %(name)-30s %(message)s',
+                'format': '%(asctime)s %(levelname)-8s %(name)-25s %(funcName)-25s %(message)s',
             },
         },
         'handlers': {
