@@ -57,7 +57,7 @@ def _get_comments_on_date(q: str, target_date: datetime) -> List[Dict]:
     """
 
     # Get cache path for upcoming request.
-    cache_path = paths.data / 'reddit_comments' / f'target_date={target_date.strftime("%Y-%m-%d")}' / f'q={q}' / '0.json.gz'
+    cache_path = paths.data / 'reddit_comments' / f'q={q}' / f'year={target_date.strftime("%Y")}' / f'month={target_date.strftime("%m")}' / f'day={target_date.strftime("%d")}' / '0.json.gz'
     cached = cache_path.is_file()
 
     # If result is not cached, hit the API and cache the result.
