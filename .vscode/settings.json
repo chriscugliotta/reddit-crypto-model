@@ -1,0 +1,12 @@
+{
+    "python.pythonPath": ".venv\\Scripts\\python.exe",
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "tests",
+        "-n", "0",
+    ],
+    "[yaml]":  {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 4
+    },
+}

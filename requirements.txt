@@ -1,0 +1,7 @@
+jupyter
+pandas
+pytest
+pytest-xdist
+PyYAML
+requests
+SQLAlchemy
