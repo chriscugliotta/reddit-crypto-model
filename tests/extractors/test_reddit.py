@@ -1,5 +1,5 @@
 from datetime import datetime
-from cc_idea.loaders.reddit import _load_comments
+from cc_idea.extractors.reddit import _load_comments
 
 
 
