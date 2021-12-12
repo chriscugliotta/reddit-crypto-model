@@ -1,4 +1,5 @@
 *.log
+*.xlsx
 .ipynb_checkpoints/
 .venv*/
 __pycache__/

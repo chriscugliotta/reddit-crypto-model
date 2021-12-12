@@ -1,7 +1,9 @@
 jupyter
+openpyxl
 pandas
 pytest
 pytest-xdist
 PyYAML
 requests
 SQLAlchemy
+yfinance
