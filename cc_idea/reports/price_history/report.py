@@ -3,6 +3,7 @@ import pandas as pd
 from pandas import DataFrame, Series
 from cc_idea.core.config import paths
 from cc_idea.utils.excel_utils import to_excel
+from cc_idea.utils.pandas_utils import epoch_to_est
 log = logging.getLogger(__name__)
 
 
@@ -13,7 +14,7 @@ def load(df_prices: DataFrame, df_comments: DataFrame) -> DataFrame:
     # Aggregate comments.
     df_comment_counts = (df_comments
         .copy()
-        .assign(created_date=lambda df: _epoch_to_est_date(df['created_utc']))
+        .assign(created_date=lambda df: epoch_to_est(df['created_utc']).dt.floor('D'))
         .assign(num_comments=1)
         .groupby('created_date', as_index=False)[['num_comments', 'score']]
         .sum()
@@ -52,13 +53,3 @@ def load(df_prices: DataFrame, df_comments: DataFrame) -> DataFrame:
 
     # Return dataframe.
     return df_report
-
-
-def _epoch_to_est_date(column: Series):
-    """Converts an epoch (e.g. 1580531187) to an EST date (e.g. 2020-01-01)."""
-    # Convert from epoch to UTC.
-    column = pd.to_datetime(column, unit='s')
-    # Convert from UTC to EST.
-    column = column.dt.tz_localize('UTC').dt.tz_convert('EST')
-    # Convert from timezone-aware timestamp to date.
-    return pd.to_datetime(column.dt.date)
