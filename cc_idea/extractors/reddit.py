@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 
 
 
-def get_comments(q: str, start_date: datetime, end_date: datetime) -> DataFrame:
+def get_comments(q: str, start_date: datetime, end_date: datetime, verbose: bool = False) -> DataFrame:
     """
     Returns all comments posted between `start_date` and `end_date` mentioning the word `q`.
 
@@ -30,7 +30,7 @@ def get_comments(q: str, start_date: datetime, end_date: datetime) -> DataFrame:
     # Load one day at a time.
     data = []
     for i in range((end_date - start_date).days):
-        data += _get_comments_on_date(q, start_date + timedelta(days=i))
+        data += _get_comments_on_date(q, start_date + timedelta(days=i), verbose)
 
     # Convert responses into dataframes.
     frames = []
@@ -46,7 +46,7 @@ def get_comments(q: str, start_date: datetime, end_date: datetime) -> DataFrame:
     return df
 
 
-def _get_comments_on_date(q: str, target_date: datetime) -> List[Dict]:
+def _get_comments_on_date(q: str, target_date: datetime, verbose: bool) -> List[Dict]:
     """
     Returns all comments posted on `target_date` mentioning the word `q`.
 
@@ -72,7 +72,8 @@ def _get_comments_on_date(q: str, target_date: datetime) -> List[Dict]:
         data = json.load(file)
 
     # Log, return.
-    log.debug(f'Done with q = {q}, target_date = {target_date:%Y-%m-%d}, rows = {sum(x["response"]["rows"] for x in data):,}, cached = {cached}.')
+    if verbose:
+        log.debug(f'Done with q = {q}, target_date = {target_date:%Y-%m-%d}, rows = {sum(x["response"]["rows"] for x in data):,}, cached = {cached}.')
     return data
 
 
