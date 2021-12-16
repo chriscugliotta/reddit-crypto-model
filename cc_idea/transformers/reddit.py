@@ -15,7 +15,6 @@ sia = SentimentIntensityAnalyzer()
 
 
 
-# TODO:  Fix bug:  Transformed `max_date` does not respect empty API responses.
 # TODO:  Fix bug:  Function `transform_comments` does not respect start/end date ranges.
 def transform_comments(q: str, metas: List[dict]) -> DataFrame:
 
@@ -61,7 +60,7 @@ def _transform_comments_in_year(q: str, metas: List[dict], year: int) -> DataFra
     return (df_comments
         .pipe(_join_sentiments, df_sentiments)
         .pipe(_aggregate_comments, q, year)
-        .pipe(_update_cache, q, year, cache_path)
+        .pipe(_update_cache, q, year, cache_path, max_date_inbound)
     )
 
 
@@ -200,7 +199,7 @@ def _aggregate_comments(df_comments: DataFrame, q: str, year: int) -> DataFrame:
     return df
 
 
-def _update_cache(df_agg: DataFrame, q: str, year: int, old_cache_path: Path) -> DataFrame:
+def _update_cache(df_agg: DataFrame, q: str, year: int, old_cache_path: Path, max_date_inbound: datetime) -> DataFrame:
     """Caches the result of all (slow) transformations performed above."""
 
     # If a cache already exists, we will append to it.
@@ -209,9 +208,8 @@ def _update_cache(df_agg: DataFrame, q: str, year: int, old_cache_path: Path) ->
         df_agg = pd.concat([df_old, df_agg], ignore_index=True)
 
     # Create new cache.
-    max_date = df_agg['created_date'].max()
     cache_prefix = paths.data / 'reddit_comments_transformed'
-    cache_path = paths.data / 'reddit_comments_transformed' / f'q={q}' / f'year={year}' / f'max_date={max_date:%Y-%m-%d}.snappy.parquet'
+    cache_path = paths.data / 'reddit_comments_transformed' / f'q={q}' / f'year={year}' / f'max_date={max_date_inbound:%Y-%m-%d}.snappy.parquet'
     cache_path.parent.mkdir(exist_ok=True, parents=True)
     df_agg.to_parquet(cache_path, index=False)
     log.debug(f'Cached {df_agg.shape[0]:,} rows at:  {cache_path.relative_to(cache_prefix).as_posix()}.')
