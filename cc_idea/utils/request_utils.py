@@ -4,7 +4,7 @@ from cc_idea.utils.retry_utils import retry_with_timeout
 
 
 
-@retry_with_timeout(tries=3, delay=5, timeout=10)
+@retry_with_timeout(tries=5, delay=5, timeout=20)
 def get_request(url: str, params: dict, iteration: int = 0) -> dict:
     """
     Wraps `requests.get` call for multiple reasons:

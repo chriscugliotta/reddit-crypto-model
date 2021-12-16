@@ -7,7 +7,7 @@ log = logging.getLogger(__name__)
 
 
 
-def get_prices(symbol: str) -> DataFrame:
+def load_prices(symbol: str) -> DataFrame:
     """Returns complete price history (at daily granularity) for given symbol."""
 
     # Get cache path for upcoming request.

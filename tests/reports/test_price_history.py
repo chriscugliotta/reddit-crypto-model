@@ -1,19 +1,19 @@
 from datetime import datetime
-from cc_idea.extractors.reddit import get_comments
-from cc_idea.extractors.yahoo import get_prices
+from cc_idea.extractors.reddit import load_comments
+from cc_idea.extractors.yahoo import load_prices
 from cc_idea.reports.price_history.report import load
 
 
 
 def test_price_history_report():
 
-    df_comments = get_comments(
+    df_comments = load_comments(
         q='doge',
         start_date=datetime(2020, 1, 1, 0, 0, 0),
-        end_date=datetime(2020, 1, 4, 0, 0, 0),
+        end_date=datetime(2020, 1, 8, 0, 0, 0),
     )
 
-    df_prices = get_prices(
+    df_prices = load_prices(
         symbol='DOGE-USD',
     )
 
