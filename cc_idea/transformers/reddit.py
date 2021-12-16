@@ -178,7 +178,7 @@ def _aggregate_comments(df_comments: DataFrame, q: str, year: int) -> DataFrame:
         return df
 
     def get_averages(df):
-        for column in columns:
+        for column in ['score'] + columns:
             df['avg_' + column] = df[column] / df['num_comments']
         for column in columns:
             df['avg_w_' + column] = df['w_' + column] / df['num_comments']
