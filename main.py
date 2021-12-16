@@ -15,10 +15,15 @@ if __name__ == '__main__':
     initialize_logger(paths.repo / 'log.log')
     log.info('Begin.')
 
-    df_comments = load_comments(
-        q='doge',
+    metas = cache_comments(
+        q='cardano',
         start_date=datetime(2020, 1, 1, 0, 0, 0),
-        end_date=datetime(2020, 1, 8, 0, 0, 0),
+        end_date=datetime(2020, 2, 1, 0, 0, 0),
+    )
+
+    df_transformed = transform_comments(
+        q='cardano',
+        metas=metas,
     )
 
     log.info('Done.')

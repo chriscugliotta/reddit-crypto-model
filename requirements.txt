@@ -1,9 +1,14 @@
 jupyter
 openpyxl
+nltk
 pandas
+pyarrow
 pytest
 pytest-xdist
 PyYAML
 requests
+sklearn
 SQLAlchemy
+textblob
+vaderSentiment
 yfinance
