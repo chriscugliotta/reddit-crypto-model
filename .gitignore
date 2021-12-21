@@ -1,4 +1,5 @@
 *.log
+*.parquet
 *.xlsx
 .ipynb_checkpoints/
 .venv*/

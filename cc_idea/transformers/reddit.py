@@ -16,6 +16,7 @@ sia = SentimentIntensityAnalyzer()
 
 
 # TODO:  Fix bug:  Function `transform_comments` does not respect start/end date ranges.
+# TODO:  Shrink dataframe early to reduce memory during parallel sentiment step.
 def transform_comments(q: str, metas: List[dict]) -> DataFrame:
 
     # Log.
