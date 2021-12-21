@@ -8,7 +8,7 @@ from textblob import TextBlob
 from typing import List, Tuple
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from cc_idea.core.config import paths
-from cc_idea.extractors.reddit import load_comments
+from cc_idea.extractors.reddit import load_reddit
 from cc_idea.utils.pandas_utils import epoch_to_est
 log = logging.getLogger(__name__)
 sia = SentimentIntensityAnalyzer()
@@ -48,10 +48,11 @@ def _transform_comments_in_year(q: str, metas: List[dict], year: int) -> DataFra
         return pd.read_parquet(cache_path)
 
     # Get inbound records that need to be processed.
-    df_comments = load_comments(
-        q=q,
+    df_comments = load_reddit(
+        endpoint='comment',
+        search=('q', q),
         start_date=max_date_cached + timedelta(days=1),
-        end_date=max_date_inbound,
+        end_date=max_date_inbound + timedelta(days=1),
     )
 
     # Perform sentiment analysis.

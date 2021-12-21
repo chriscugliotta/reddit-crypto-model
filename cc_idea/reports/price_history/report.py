@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 
 
-def load(df_prices: DataFrame, df_comments: DataFrame) -> DataFrame:
+def load_report(df_prices: DataFrame, df_comments: DataFrame) -> DataFrame:
     """This report shows historical relationship between comments and prices."""
 
     # Aggregate comments.
