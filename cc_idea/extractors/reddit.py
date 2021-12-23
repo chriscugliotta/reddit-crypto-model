@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 
 
 
-def load_reddit(endpoint: str, search: Tuple[str, str], start_date: datetime, end_date: datetime) -> DataFrame:
+def load_reddit(endpoint: str, search: Tuple[str, str], start_date: datetime, end_date: datetime, columns: List[str] = None) -> DataFrame:
     """
     Loads all comments (or submissions) posted within the given search filters.
 
@@ -24,7 +24,7 @@ def load_reddit(endpoint: str, search: Tuple[str, str], start_date: datetime, en
         with gzip.open(meta['path'], 'rt') as file:
             data = json.load(file)
         for result in data:
-            frame = pd.DataFrame(result['response']['json']['data'])
+            frame = pd.DataFrame(result['response']['json']['data'], columns=columns)
             frames += [frame]
     df = pd.concat(frames, ignore_index=True)
     log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date:%Y-%m-%d}, end_date = {end_date:%Y-%m-%d}, rows = {df.shape[0]:,}.')
@@ -100,6 +100,8 @@ def _load_reddit(endpoint: str, search: Tuple[str, str], start_date: datetime, e
         Pushshift API:
         https://github.com/pushshift/api
     """
+    # TODO:  Be careful.  `timestamp` and `fromtimestamp` functions will assume local machine's timezone.
+    # TODO:  On non-EST machine, will need to explicitly declare US/Eastern during all epoch conversions.
 
     results = []
     batch_min_date = start_date
