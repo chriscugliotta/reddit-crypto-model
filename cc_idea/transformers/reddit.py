@@ -15,44 +15,94 @@ sia = SentimentIntensityAnalyzer()
 
 
 
-# TODO:  Fix bug:  Function `transform_comments` does not respect start/end date ranges.
-# TODO:  Shrink dataframe early to reduce memory during parallel sentiment step.
-def transform_comments(q: str, metas: List[dict]) -> DataFrame:
+# TODO:  Finalize aggregated metrics.
+# TODO:  Handle submissions.
+def transform_reddit(endpoint: str, q: str, metas: List[dict], chunk_size: int = 100) -> DataFrame:
 
     # Log.
-    log.debug(f'Begin with q = {q}, metas = {len(metas)}.')
+    log.debug(f'Begin with endpoint = {endpoint}, q = {q}, metas = {len(metas)}.')
 
-    # To reduce memory, process each year separately.
-    years = sorted({meta['date'].year for meta in metas})
-    frames = [_transform_comments_in_year(q, metas, year) for year in years]
-    df = pd.concat(frames, ignore_index=True)
+    # Get already-cached date range (if any cache exists).
+    min_date_cached, max_date_cached, cache_path = _check_cache(endpoint, q)
+
+    # How many inbound days need to be processed?
+    inbound = [
+        meta
+        for meta in metas
+        if (min_date_cached is None or meta['date'] < min_date_cached)
+        or (max_date_cached is None or meta['date'] > max_date_cached)
+    ]
+    log.debug(f'min_date_cached = {min_date_cached}, max_date_cached = {max_date_cached}, not_cached_days = {len(inbound)}.')
+
+    # Stop early if all inbound data has already been processed.
+    if len(inbound) == 0:
+        return pd.read_parquet(cache_path)
+
+    # To reduce memory, process N megabytes at a time.
+    chunk = []
+    size = 0
+    for i, meta in enumerate(inbound):
+        chunk += [meta]
+        size += meta['path'].stat().st_size
+        if size > (chunk_size * 1e6) or i == len(inbound) - 1:
+            df = _transform_chunk(endpoint, q, chunk, size)
+            chunk = []
+            size = 0
 
     # Log, return.
-    log.debug(f'Done with q = {q}, rows = {df.shape[0]}.')
+    log.debug(f'Done with endpoint = {endpoint}, q = {q}, rows = {df.shape[0]}.')
     return df
 
 
-def _transform_comments_in_year(q: str, metas: List[dict], year: int) -> DataFrame:
+def _check_cache(endpoint: str, q: str) -> Tuple[date, date, Path]:
+    """
+    Returns the date range and file path for a given cache (if it exists).
 
-    # Get maximum date in inbound data.
-    max_date_inbound = max(x['date'] for x in metas if x['date'].year == year)
+    Note:
+        Each `q` value is transformed and cached separately into a parquet file named like:
+        `q={q}/min_date={min_date}, max_date={max_date}.snappy.parquet`, where `min_date` and
+        `max_date` indicate the date range within the parquet file.  This file naming pattern is
+        used to optimize our incremental cache refresh logic.
+    """
 
-    # Get maximum date in cache file (if it exists).
-    max_date_cached, cache_path = _check_cache(q, year)
+    cache_dir = paths.data / f'reddit_{endpoint}s_aggregated' / f'q={q}'
+    cache_paths = list(cache_dir.glob('*.snappy.parquet'))
 
-    # How many inbound days need to be processed?
-    log.debug(f'q = {q}, year = {year}, max_date_cached = {max_date_cached}, max_date_inbound = {max_date_inbound}, not_cached_days = {(max_date_inbound - max_date_cached).days}.')
+    if len(cache_paths) > 0:
+        cache_path = cache_paths[0]
+        min_date = datetime.strptime(cache_path.name[9:19], '%Y-%m-%d').date()
+        max_date = datetime.strptime(cache_path.name[30:40], '%Y-%m-%d').date()
+    else:
+        cache_path = None
+        min_date = None
+        max_date = None
 
-    # Stop early if all inbound data has already been processed.
-    if max_date_cached >= max_date_inbound:
-        return pd.read_parquet(cache_path)
+    return min_date, max_date, cache_path
+
+
+def _transform_chunk(endpoint: str, q: str, metas: List[dict], size: int) -> DataFrame:
+
+    # Log
+    log.debug(f'Begin with endpoint = {endpoint}, q = {q}, metas = {len(metas):,}, size = {size / 1e6:.2f} MB.')
+
+    # To reduce memory, we will only load a subset of columns.
+    columns = [
+        'id',
+        'created_utc',
+        'author',
+        'subreddit',
+        'body',
+        'score',
+    ]
 
     # Get inbound records that need to be processed.
     df_comments = load_reddit(
-        endpoint='comment',
+        endpoint=endpoint,
         search=('q', q),
-        start_date=max_date_cached + timedelta(days=1),
-        end_date=max_date_inbound + timedelta(days=1),
+        start_date=None,
+        end_date=None,
+        metas=metas,
+        columns=columns,
     )
 
     # Perform sentiment analysis.
@@ -61,33 +111,9 @@ def _transform_comments_in_year(q: str, metas: List[dict], year: int) -> DataFra
     # Join, aggregate, validate, cache.
     return (df_comments
         .pipe(_join_sentiments, df_sentiments)
-        .pipe(_aggregate_comments, q, year)
-        .pipe(_update_cache, q, year, cache_path, max_date_inbound)
+        .pipe(_aggregate_comments, endpoint, q)
+        .pipe(_update_cache, endpoint, q)
     )
-
-
-def _check_cache(q: str, year: int) -> Tuple[date, Path]:
-    """
-    Returns the maximum date and file path for a given cache (if it exists).
-
-    Note:
-        Each (q, year) combination is cached separately into a parquet file named like:
-        `q={q}/year={year}/max_date={YYYY-MM-DD}.snappy.parquet`, where `max_date` indicates the
-        maximum date within the parquet file.  This `max_date` tag is used to guide our incremental
-        cache refresh logic.
-    """
-
-    cache_dir = paths.data / 'reddit_comments_transformed' / f'q={q}' / f'year={year}'
-    cache_paths = list(cache_dir.glob('*.snappy.parquet'))
-
-    if len(cache_paths) > 0:
-        cache_path = cache_paths[0]
-        max_date_cached = datetime.strptime(cache_path.name.split('.')[0].split('=')[1], '%Y-%m-%d').date()
-    else:
-        cache_path = None
-        max_date_cached = date(year, 1, 1) - timedelta(days=1)
-
-    return max_date_cached, cache_path
 
 
 def _analyze_comments(df_comments: DataFrame) -> DataFrame:
@@ -162,7 +188,7 @@ def _join_sentiments(df_comments: DataFrame, df_sentiments: DataFrame) -> DataFr
     return df
 
 
-def _aggregate_comments(df_comments: DataFrame, q: str, year: int) -> DataFrame:
+def _aggregate_comments(df_comments: DataFrame, endpoint: str, q: str) -> DataFrame:
     """Aggregates comments, scores, and sentiments up to (q, created_date) level."""
 
     columns = [
@@ -196,28 +222,34 @@ def _aggregate_comments(df_comments: DataFrame, q: str, year: int) -> DataFrame:
         .pipe(get_averages)
     )
 
-    assert df['created_date'].dt.year.drop_duplicates().tolist() == [year]
     log.debug(f'Aggregated {df_comments.shape[0]:,} comments into {df.shape[0]:,} rows.')
     return df
 
 
-def _update_cache(df_agg: DataFrame, q: str, year: int, old_cache_path: Path, max_date_inbound: date) -> DataFrame:
+def _update_cache(df_agg: DataFrame, endpoint: str, q: str) -> DataFrame:
     """Caches the result of all (slow) transformations performed above."""
 
-    # If a cache already exists, we will append to it.
-    if old_cache_path is not None and old_cache_path.is_file():
+    # Does a previous cache already exist?
+    old_min_date, old_max_date, old_cache_path = _check_cache(endpoint, q)
+
+    # If so, we will append to it.
+    if old_cache_path is not None:
         df_old = pd.read_parquet(old_cache_path)
         df_agg = pd.concat([df_old, df_agg], ignore_index=True)
 
+    # Get new date range.
+    min_date = df_agg['created_date'].min().date()
+    max_date = df_agg['created_date'].max().date()
+
     # Create new cache.
-    cache_prefix = paths.data / 'reddit_comments_transformed'
-    cache_path = paths.data / 'reddit_comments_transformed' / f'q={q}' / f'year={year}' / f'max_date={max_date_inbound}.snappy.parquet'
+    cache_prefix = paths.data / f'reddit_{endpoint}s_aggregated'
+    cache_path = cache_prefix / f'q={q}' / f'min_date={min_date}, max_date={max_date}.snappy.parquet'
     cache_path.parent.mkdir(exist_ok=True, parents=True)
     df_agg.to_parquet(cache_path, index=False)
     log.debug(f'Cached {df_agg.shape[0]:,} rows at:  {cache_path.relative_to(cache_prefix).as_posix()}.')
 
     # Delete old cache.
-    if old_cache_path is not None and old_cache_path.is_file():
+    if old_cache_path is not None:
         old_cache_path.unlink()
         log.debug(f'Deleted {df_old.shape[0]:,} rows at:  {old_cache_path.relative_to(cache_prefix).as_posix()}.')
 

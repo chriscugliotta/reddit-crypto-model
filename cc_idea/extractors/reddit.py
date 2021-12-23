@@ -12,14 +12,14 @@ log = logging.getLogger(__name__)
 
 
 
-def load_reddit(endpoint: str, search: Tuple[str, str], start_date: date, end_date: date, columns: List[str] = None) -> DataFrame:
+def load_reddit(endpoint: str, search: Tuple[str, str], start_date: date, end_date: date, metas: List[dict] = [], columns: List[str] = None) -> DataFrame:
     """
     Loads all comments (or submissions) posted within the given search filters.
 
     Returns:  A dataframe containing all API responses.
     """
-    log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}.')
-    metas = cache_reddit(endpoint, search, start_date, end_date)
+    log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}, metas = {len(metas)}.')
+    metas = cache_reddit(endpoint, search, start_date, end_date) if metas == [] else metas
     frames = []
     for meta in metas:
         with gzip.open(meta['path'], 'rt') as file:
@@ -28,7 +28,7 @@ def load_reddit(endpoint: str, search: Tuple[str, str], start_date: date, end_da
             frame = pd.DataFrame(result['response']['json']['data'], columns=columns)
             frames += [frame]
     df = pd.concat(frames, ignore_index=True)
-    log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}, rows = {df.shape[0]:,}.')
+    log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}, metas = {len(metas)}, rows = {df.shape[0]:,}.')
     return df
 
 
