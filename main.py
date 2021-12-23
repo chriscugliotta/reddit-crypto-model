@@ -9,22 +9,32 @@ log = logging.getLogger('cc_idea')
 
 
 
+def _extract_and_transform(endpoint: str, symbols: list, start_date: date, end_date: date):
+    for symbol in symbols:
+        metas = cache_reddit(
+            endpoint=endpoint,
+            search=('q', symbol),
+            start_date=start_date,
+            end_date=end_date,
+        )
+        df_transformed = transform_reddit(
+            endpoint=endpoint,
+            q=symbol,
+            metas=metas,
+        )
+
+
 if __name__ == '__main__':
 
     initialize_logger(paths.repo / 'log.log')
     log.info('Begin.')
 
-    metas = cache_reddit(
+    _extract_and_transform(
         endpoint='comment',
-        search=('q', 'cardano'),
+        #symbols=['altcoin', 'bitcoin', 'btc', 'cardano', 'doge', 'eth', 'ethereum'],
+        symbols=['cardano'],
         start_date=date(2020, 1, 1),
-        end_date=date(2020, 2, 1),
-    )
-
-    df_transformed = transform_reddit(
-        endpoint='comment',
-        q='cardano',
-        metas=metas,
+        end_date=date(2021, 12, 1),
     )
 
     log.info('Done.')
