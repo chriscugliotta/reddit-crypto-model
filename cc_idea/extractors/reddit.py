@@ -2,22 +2,23 @@ import gzip
 import json
 import logging
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pandas import DataFrame
 from typing import List, Tuple
 from cc_idea.core.config import paths
+from cc_idea.utils.date_utils import date_to_datetime
 from cc_idea.utils.request_utils import get_request
 log = logging.getLogger(__name__)
 
 
 
-def load_reddit(endpoint: str, search: Tuple[str, str], start_date: datetime, end_date: datetime, columns: List[str] = None) -> DataFrame:
+def load_reddit(endpoint: str, search: Tuple[str, str], start_date: date, end_date: date, columns: List[str] = None) -> DataFrame:
     """
     Loads all comments (or submissions) posted within the given search filters.
 
     Returns:  A dataframe containing all API responses.
     """
-    log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date:%Y-%m-%d}, end_date = {end_date:%Y-%m-%d}.')
+    log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}.')
     metas = cache_reddit(endpoint, search, start_date, end_date)
     frames = []
     for meta in metas:
@@ -27,11 +28,11 @@ def load_reddit(endpoint: str, search: Tuple[str, str], start_date: datetime, en
             frame = pd.DataFrame(result['response']['json']['data'], columns=columns)
             frames += [frame]
     df = pd.concat(frames, ignore_index=True)
-    log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date:%Y-%m-%d}, end_date = {end_date:%Y-%m-%d}, rows = {df.shape[0]:,}.')
+    log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}, rows = {df.shape[0]:,}.')
     return df
 
 
-def cache_reddit(endpoint: str, search: Tuple[str, str], start_date: datetime, end_date: datetime) -> List[dict]:
+def cache_reddit(endpoint: str, search: Tuple[str, str], start_date: date, end_date: date) -> List[dict]:
     """
     Caches all comments (or submissions) posted within the given search filters.
 
@@ -39,12 +40,11 @@ def cache_reddit(endpoint: str, search: Tuple[str, str], start_date: datetime, e
     """
 
     # Log.
-    log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date:%Y-%m-%d}, end_date = {end_date:%Y-%m-%d}.')
+    log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}.')
 
     # Never load future dates.
     # Never load current date (to prevent stale snapshot in cache).
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    end_date = min(end_date, today)
+    end_date = min(end_date, date.today())
 
     # Cache one day at a time.
     metas = [
@@ -53,11 +53,11 @@ def cache_reddit(endpoint: str, search: Tuple[str, str], start_date: datetime, e
     ]
 
     # Log, return.
-    log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date:%Y-%m-%d}, end_date = {end_date:%Y-%m-%d}, metas = {len(metas):,}.')
+    log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}, metas = {len(metas):,}.')
     return metas
 
 
-def _cache_reddit_date(endpoint: str, search: Tuple[str, str], target_date: datetime) -> dict:
+def _cache_reddit_date(endpoint: str, search: Tuple[str, str], target_date: date) -> dict:
     """
     Caches all comments (or submissions) posted on `target_date` within the given search filters.
 
@@ -72,11 +72,11 @@ def _cache_reddit_date(endpoint: str, search: Tuple[str, str], target_date: date
 
     # If result is not cached, hit the API and cache the result.
     if not cache_path.is_file():
-        data = _load_reddit(endpoint, search, target_date, target_date + timedelta(days=1))
+        data = _load_reddit(endpoint, search, date_to_datetime(target_date), date_to_datetime(target_date + timedelta(days=1)))
         cache_path.parent.mkdir(parents=True)
         with gzip.open(cache_path, 'wt') as file:
             json.dump(data, file)
-        log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, target_date = {target_date:%Y-%m-%d}, rows = {sum(x["response"]["rows"] for x in data):,}.')
+        log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, target_date = {target_date}, rows = {sum(x["response"]["rows"] for x in data):,}.')
 
     # Return cache file metadata.
     return {

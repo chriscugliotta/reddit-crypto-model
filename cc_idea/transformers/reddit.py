@@ -1,7 +1,7 @@
 import logging
 import multiprocessing as mp
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pandas import DataFrame
 from pathlib import Path
 from textblob import TextBlob
@@ -9,7 +9,7 @@ from typing import List, Tuple
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from cc_idea.core.config import paths
 from cc_idea.extractors.reddit import load_reddit
-from cc_idea.utils.pandas_utils import epoch_to_est
+from cc_idea.utils.date_utils import epoch_to_est
 log = logging.getLogger(__name__)
 sia = SentimentIntensityAnalyzer()
 
@@ -41,7 +41,7 @@ def _transform_comments_in_year(q: str, metas: List[dict], year: int) -> DataFra
     max_date_cached, cache_path = _check_cache(q, year)
 
     # How many inbound days need to be processed?
-    log.debug(f'q = {q}, year = {year}, max_date_cached = {max_date_cached:%m-%d}, max_date_inbound = {max_date_inbound:%m-%d}, not_cached_days = {(max_date_inbound - max_date_cached).days}.')
+    log.debug(f'q = {q}, year = {year}, max_date_cached = {max_date_cached}, max_date_inbound = {max_date_inbound}, not_cached_days = {(max_date_inbound - max_date_cached).days}.')
 
     # Stop early if all inbound data has already been processed.
     if max_date_cached >= max_date_inbound:
@@ -66,7 +66,7 @@ def _transform_comments_in_year(q: str, metas: List[dict], year: int) -> DataFra
     )
 
 
-def _check_cache(q: str, year: int) -> Tuple[datetime, Path]:
+def _check_cache(q: str, year: int) -> Tuple[date, Path]:
     """
     Returns the maximum date and file path for a given cache (if it exists).
 
@@ -82,10 +82,10 @@ def _check_cache(q: str, year: int) -> Tuple[datetime, Path]:
 
     if len(cache_paths) > 0:
         cache_path = cache_paths[0]
-        max_date_cached = datetime.strptime(cache_path.name.split('.')[0].split('=')[1], '%Y-%m-%d')
+        max_date_cached = datetime.strptime(cache_path.name.split('.')[0].split('=')[1], '%Y-%m-%d').date()
     else:
         cache_path = None
-        max_date_cached = datetime(year, 1, 1, 0, 0, 0) - timedelta(days=1)
+        max_date_cached = date(year, 1, 1) - timedelta(days=1)
 
     return max_date_cached, cache_path
 
@@ -201,7 +201,7 @@ def _aggregate_comments(df_comments: DataFrame, q: str, year: int) -> DataFrame:
     return df
 
 
-def _update_cache(df_agg: DataFrame, q: str, year: int, old_cache_path: Path, max_date_inbound: datetime) -> DataFrame:
+def _update_cache(df_agg: DataFrame, q: str, year: int, old_cache_path: Path, max_date_inbound: date) -> DataFrame:
     """Caches the result of all (slow) transformations performed above."""
 
     # If a cache already exists, we will append to it.
@@ -211,7 +211,7 @@ def _update_cache(df_agg: DataFrame, q: str, year: int, old_cache_path: Path, ma
 
     # Create new cache.
     cache_prefix = paths.data / 'reddit_comments_transformed'
-    cache_path = paths.data / 'reddit_comments_transformed' / f'q={q}' / f'year={year}' / f'max_date={max_date_inbound:%Y-%m-%d}.snappy.parquet'
+    cache_path = paths.data / 'reddit_comments_transformed' / f'q={q}' / f'year={year}' / f'max_date={max_date_inbound}.snappy.parquet'
     cache_path.parent.mkdir(exist_ok=True, parents=True)
     df_agg.to_parquet(cache_path, index=False)
     log.debug(f'Cached {df_agg.shape[0]:,} rows at:  {cache_path.relative_to(cache_prefix).as_posix()}.')

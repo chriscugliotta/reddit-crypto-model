@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from cc_idea.core.config import paths
 from cc_idea.extractors.reddit import load_reddit, cache_reddit
 from cc_idea.extractors.yahoo import load_prices
@@ -17,8 +17,8 @@ if __name__ == '__main__':
     metas = cache_reddit(
         endpoint='submission',
         search=('q', 'cardano'),
-        start_date=datetime(2020, 1, 1, 0, 0, 0),
-        end_date=datetime(2020, 2, 1, 0, 0, 0),
+        start_date=date(2020, 1, 1),
+        end_date=date(2020, 2, 1),
     )
 
     df_transformed = transform_comments(

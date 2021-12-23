@@ -1,6 +1,11 @@
 import pandas as pd
+from datetime import date, datetime
 from pandas import Series
 
+
+def date_to_datetime(x: date) -> datetime:
+    """Converts a date to a datetime."""
+    return datetime(x.year, x.month, x.day)
 
 
 def epoch_to_est(column: Series):

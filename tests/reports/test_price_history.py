@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date
 from cc_idea.extractors.reddit import load_reddit
 from cc_idea.extractors.yahoo import load_prices
 from cc_idea.reports.price_history.report import load_report
@@ -10,8 +10,8 @@ def test_price_history_report():
     df_comments = load_reddit(
         endpoint='comment',
         search=('q', 'doge'),
-        start_date=datetime(2020, 1, 1, 0, 0, 0),
-        end_date=datetime(2020, 1, 8, 0, 0, 0),
+        start_date=date(2020, 1, 1),
+        end_date=date(2020, 1, 8),
     )
 
     df_prices = load_prices(
