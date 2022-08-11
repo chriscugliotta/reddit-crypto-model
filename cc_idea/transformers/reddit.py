@@ -1,3 +1,4 @@
+import json
 import logging
 import multiprocessing as mp
 from datetime import datetime
@@ -16,14 +17,14 @@ sia = SentimentIntensityAnalyzer()
 
 # TODO:  Finalize aggregated metrics.
 # TODO:  Handle submissions.
-def transform_reddit(endpoint: str, q: str, caches: List[DateCache], chunk_size: int = 100) -> DataFrame:
+def transform_reddit(endpoint: str, search: dict, caches: List[DateCache], chunk_size: int = 100) -> DataFrame:
 
     # Log.
-    log.debug(f'Begin with endpoint = {endpoint}, q = {q}, caches = {len(caches)}.')
+    log.debug(f'Begin with endpoint = {endpoint}, search = {search}, caches = {len(caches)}.')
 
     # Get already-cached date range (if any cache exists).
     range_cache = DateRangeCache.from_prefix(
-        prefix=paths.data / f'reddit_{endpoint}s_aggregated' / f'q={q}',
+        prefix=paths.data / f'reddit_{endpoint}s_aggregated' / ', '.join(f'{k}={v}' for k, v in search.items()),
         suffix='.snappy.parquet',
     )
 
@@ -47,19 +48,19 @@ def transform_reddit(endpoint: str, q: str, caches: List[DateCache], chunk_size:
         chunk += [cache]
         size += cache.path.stat().st_size
         if size > (chunk_size * 1e6) or i == len(inbound) - 1:
-            df = _transform_chunk(endpoint, q, chunk, size, range_cache)
+            df = _transform_chunk(endpoint, search, chunk, size, range_cache)
             chunk = []
             size = 0
 
     # Log, return.
-    log.debug(f'Done with endpoint = {endpoint}, q = {q}, rows = {len(df)}.')
+    log.debug(f'Done with endpoint = {endpoint}, search = {search}, rows = {len(df)}.')
     return df
 
 
-def _transform_chunk(endpoint: str, q: str, caches: List[dict], size: int, range_cache: DateRangeCache) -> DataFrame:
+def _transform_chunk(endpoint: str, search: dict, caches: List[dict], size: int, range_cache: DateRangeCache) -> DataFrame:
 
     # Log
-    log.debug(f'Begin with endpoint = {endpoint}, q = {q}, caches = {len(caches):,}, size = {size / 1e6:.2f} MB.')
+    log.debug(f'Begin with endpoint = {endpoint}, search = {search}, caches = {len(caches):,}, size = {size / 1e6:.2f} MB.')
 
     # To reduce memory, we will only load a subset of columns.
     columns = [
@@ -74,7 +75,7 @@ def _transform_chunk(endpoint: str, q: str, caches: List[dict], size: int, range
     # Get inbound records that need to be processed.
     df_comments = load_reddit(
         endpoint=endpoint,
-        q=q,
+        search=search,
         start_date=None,
         end_date=None,
         caches=caches,
@@ -87,7 +88,7 @@ def _transform_chunk(endpoint: str, q: str, caches: List[dict], size: int, range
     # Join, aggregate, validate, cache.
     return (df_comments
         .pipe(_join_sentiments, df_sentiments)
-        .pipe(_aggregate_comments, endpoint, q)
+        .pipe(_aggregate_comments, endpoint, search)
         .pipe(_update_cache, range_cache)
     )
 
@@ -164,8 +165,8 @@ def _join_sentiments(df_comments: DataFrame, df_sentiments: DataFrame) -> DataFr
     return df
 
 
-def _aggregate_comments(df_comments: DataFrame, endpoint: str, q: str) -> DataFrame:
-    """Aggregates comments, scores, and sentiments up to (q, created_date) level."""
+def _aggregate_comments(df_comments: DataFrame, endpoint: str, search: dict) -> DataFrame:
+    """Aggregates comments, scores, and sentiments up to (search, created_date) level."""
 
     columns = [
         'negative',
@@ -189,11 +190,11 @@ def _aggregate_comments(df_comments: DataFrame, endpoint: str, q: str) -> DataFr
         return df
 
     df = (df_comments
-        .assign(q=q)
+        .assign(search=json.dumps(search))
         .assign(num_comments=1)
         .pipe(get_weighted)
-        .loc[:, ['q', 'created_date', 'num_comments', 'score'] + columns + ['w_' + x for x in columns]]
-        .groupby(['q', 'created_date'], as_index=False)
+        .loc[:, ['search', 'created_date', 'num_comments', 'score'] + columns + ['w_' + x for x in columns]]
+        .groupby(['search', 'created_date'], as_index=False)
         .sum()
         .pipe(get_averages)
     )

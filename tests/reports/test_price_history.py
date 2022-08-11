@@ -9,7 +9,7 @@ def test_price_history_report():
 
     df_comments = load_reddit(
         endpoint='comment',
-        q='doge',
+        search={'q': 'doge'},
         start_date=date(2020, 1, 1),
         end_date=date(2020, 1, 8),
     )

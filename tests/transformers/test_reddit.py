@@ -20,7 +20,7 @@ def test_transform_reddit():
     # Extract.
     caches = cache_reddit(
         endpoint='comment',
-        q='zoltan',
+        search={'q': 'zoltan'},
         start_date=date(2020, 1, 1),
         end_date=date(2020, 1, 3),
     )
@@ -28,7 +28,7 @@ def test_transform_reddit():
     # Transform.
     df = transform_reddit(
         endpoint='comment',
-        q='zoltan',
+        search={'q': 'zoltan'},
         caches=caches,
         chunk_size=0,
     )

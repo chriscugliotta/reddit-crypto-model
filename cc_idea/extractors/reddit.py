@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 
 
 
-def load_reddit(endpoint: str, q: str, start_date: date, end_date: date, caches: List[DateCache] = [], columns: List[str] = None) -> DataFrame:
+def load_reddit(endpoint: str, search: dict, start_date: date, end_date: date, caches: List[DateCache] = [], columns: List[str] = None) -> DataFrame:
     """
     Loads all comments (or submissions) posted within the given search filters.
 
@@ -19,9 +19,10 @@ def load_reddit(endpoint: str, q: str, start_date: date, end_date: date, caches:
         endpoint (str):
             Pushshift API endpoint.  Either `comment` or `submission`.
 
-        q (str):
+        search (Tuple[str, str]):
             Search term.
             All comments (or submissions) containing this term will be returned.
+            Examples:  `{q: doge}` or `{subreddit: CryptoCurrency, score: >20}`.
 
         start_date, end_date (date):
             Search time range
@@ -38,19 +39,19 @@ def load_reddit(endpoint: str, q: str, start_date: date, end_date: date, caches:
     Returns:
         DataFrame:  Contains all API responses.
     """
-    log.debug(f'Begin with endpoint = {endpoint}, q = {q}, start_date = {start_date}, end_date = {end_date}, caches = {len(caches)}.')
-    caches = cache_reddit(endpoint, q, start_date, end_date) if caches == [] else caches
+    log.debug(f'Begin with endpoint = {endpoint}, search = {search}, start_date = {start_date}, end_date = {end_date}, caches = {len(caches)}.')
+    caches = cache_reddit(endpoint, search, start_date, end_date) if caches == [] else caches
     frames = [
         pd.DataFrame(result['response']['json']['data'], columns=columns)
         for cache in caches
         for result in cache.load()
     ]
     df = pd.concat(frames, ignore_index=True)
-    log.debug(f'Done with endpoint = {endpoint}, q = {q}, start_date = {start_date}, end_date = {end_date}, caches = {len(caches)}, rows = {len(df)}.')
+    log.debug(f'Done with endpoint = {endpoint}, search = {search}, start_date = {start_date}, end_date = {end_date}, caches = {len(caches)}, rows = {len(df)}.')
     return df
 
 
-def cache_reddit(endpoint: str, q: str, start_date: date, end_date: date) -> List[DateCache]:
+def cache_reddit(endpoint: str, search: dict, start_date: date, end_date: date) -> List[DateCache]:
     """
     Caches all comments (or submissions) posted within the given search filters.
 
@@ -59,7 +60,7 @@ def cache_reddit(endpoint: str, q: str, start_date: date, end_date: date) -> Lis
     """
 
     # Log.
-    log.debug(f'Begin with endpoint = {endpoint}, q = {q}, start_date = {start_date}, end_date = {end_date}.')
+    log.debug(f'Begin with endpoint = {endpoint}, search = {search}, start_date = {start_date}, end_date = {end_date}.')
 
     # Never load future dates.
     # Never load current date (to prevent stale snapshot in cache).
@@ -67,16 +68,16 @@ def cache_reddit(endpoint: str, q: str, start_date: date, end_date: date) -> Lis
 
     # Cache one day at a time.
     caches = [
-        _cache_reddit_date(endpoint, q, start_date + timedelta(days=i))
+        _cache_reddit_date(endpoint, search, start_date + timedelta(days=i))
         for i in range((end_date - start_date).days + 1)
     ]
 
     # Log, return.
-    log.debug(f'Done with endpoint = {endpoint}, q = {q}, start_date = {start_date}, end_date = {end_date}, caches = {len(caches):,}.')
+    log.debug(f'Done with endpoint = {endpoint}, search = {search}, start_date = {start_date}, end_date = {end_date}, caches = {len(caches):,}.')
     return caches
 
 
-def _cache_reddit_date(endpoint: str, q: str, target_date: date) -> DateCache:
+def _cache_reddit_date(endpoint: str, search: dict, target_date: date) -> DateCache:
     """
     Caches all comments (or submissions) posted on `target_date` within the given search filters.
 
@@ -88,21 +89,21 @@ def _cache_reddit_date(endpoint: str, q: str, target_date: date) -> DateCache:
     # Get cache object for upcoming request.
     cache = DateCache(
         date=target_date,
-        prefix=paths.data / f'reddit_{endpoint}s' / f'q={q}',
+        prefix=paths.data / f'reddit_{endpoint}s' / ', '.join(f'{k}={v}' for k, v in search.items()),
         suffix='.json.gz',
     )
 
     # If result is not cached, hit the API and cache the result.
     if not cache.path.is_file():
-        data = _load_reddit(endpoint, q, date_to_datetime(target_date), date_to_datetime(target_date + timedelta(days=1)))
+        data = _load_reddit(endpoint, search, date_to_datetime(target_date), date_to_datetime(target_date + timedelta(days=1)))
         cache.save(data)
-        log.debug(f'Done with endpoint = {endpoint}, q = {q}, target_date = {target_date}, rows = {sum(x["response"]["rows"] for x in data):,}.')
+        log.debug(f'Done with endpoint = {endpoint}, search = {search}, target_date = {target_date}, rows = {sum(x["response"]["rows"] for x in data):,}.')
 
     # Return cache object.
     return cache
 
 
-def _load_reddit(endpoint: str, q: str, start_date: datetime, end_date: datetime, max_iterations: int = 3600) -> List[dict]:
+def _load_reddit(endpoint: str, search: dict, start_date: datetime, end_date: datetime, max_iterations: int = 3600) -> List[dict]:
     """
     Iteratively queries the Pushshift API, and returns all comments (or submissions) posted within
     the given search filters.
@@ -126,13 +127,13 @@ def _load_reddit(endpoint: str, q: str, start_date: datetime, end_date: datetime
 
         # Pull batch i.
         params = {
-            'q': q,
             'after': int(batch_min_date.timestamp()),
             'before': int(end_date.timestamp()),
             'size': 100,
             'sort_type': 'created_utc',
             'sort': 'asc',
         }
+        params = {**search, **params}
         result = get_request(f'https://api.pushshift.io/reddit/search/{endpoint}', params, i)
         batch = result['response']['json']['data']
 

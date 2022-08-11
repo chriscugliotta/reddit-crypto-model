@@ -9,17 +9,17 @@ log = logging.getLogger('cc_idea')
 
 
 
-def _extract_and_transform(endpoint: str, symbols: list, start_date: date, end_date: date):
-    for symbol in symbols:
+def _extract_and_transform(endpoint: str, searches: list, start_date: date, end_date: date):
+    for search in searches:
         caches = cache_reddit(
             endpoint=endpoint,
-            q=symbol,
+            search=search,
             start_date=start_date,
             end_date=end_date,
         )
         df_transformed = transform_reddit(
             endpoint=endpoint,
-            q=symbol,
+            search=search,
             caches=caches,
         )
 
@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     _extract_and_transform(
         endpoint='comment',
-        symbols=['cardano'],
+        searches=[{'q': 'cardano'}],
         start_date=date(2020, 1, 1),
         end_date=date(2021, 12, 1),
     )
