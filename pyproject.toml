@@ -1,3 +1,7 @@
 [tool.pytest.ini_options]
 addopts = "--show-capture log --tb native --durations 0 --verbose --disable-warnings"
 testpaths = "tests"
+
+[tool.pyright]
+include = ["cc_idea"]
+exclude = ["data"] # Big performance optimization for VSCode IntelliSense.

@@ -1,10 +1,9 @@
-import gzip
-import json
 import logging
 import pandas as pd
 from datetime import date, datetime, timedelta
 from pandas import DataFrame
-from typing import List, Tuple
+from typing import List
+from cc_idea.core.cache import DateCache
 from cc_idea.core.config import paths
 from cc_idea.utils.date_utils import date_to_datetime
 from cc_idea.utils.request_utils import get_request
@@ -12,81 +11,98 @@ log = logging.getLogger(__name__)
 
 
 
-def load_reddit(endpoint: str, search: Tuple[str, str], start_date: date, end_date: date, metas: List[dict] = [], columns: List[str] = None) -> DataFrame:
+def load_reddit(endpoint: str, q: str, start_date: date, end_date: date, caches: List[DateCache] = [], columns: List[str] = None) -> DataFrame:
     """
     Loads all comments (or submissions) posted within the given search filters.
 
-    Returns:  A dataframe containing all API responses.
+    Args:
+        endpoint (str):
+            Pushshift API endpoint.  Either `comment` or `submission`.
+
+        q (str):
+            Search term.
+            All comments (or submissions) containing this term will be returned.
+
+        start_date, end_date (date):
+            Search time range
+            All comments (or submissions) posted between [start_date, end_date) will be returned.
+
+        caches (List[DateCache]):
+            List of cache objects.  If provided, the API is not hit.  Instead, we only load the
+            given cache files.
+
+        columns (List[str]):
+            List of JSON attributes (from API response) to include as dataframe columns.  If
+            omitted, all attributes are included.
+
+    Returns:
+        DataFrame:  Contains all API responses.
     """
-    log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}, metas = {len(metas)}.')
-    metas = cache_reddit(endpoint, search, start_date, end_date) if metas == [] else metas
-    frames = []
-    for meta in metas:
-        with gzip.open(meta['path'], 'rt') as file:
-            data = json.load(file)
-        for result in data:
-            frame = pd.DataFrame(result['response']['json']['data'], columns=columns)
-            frames += [frame]
+    log.debug(f'Begin with endpoint = {endpoint}, q = {q}, start_date = {start_date}, end_date = {end_date}, caches = {len(caches)}.')
+    caches = cache_reddit(endpoint, q, start_date, end_date) if caches == [] else caches
+    frames = [
+        pd.DataFrame(result['response']['json']['data'], columns=columns)
+        for cache in caches
+        for result in cache.load()
+    ]
     df = pd.concat(frames, ignore_index=True)
-    log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}, metas = {len(metas)}, rows = {df.shape[0]:,}.')
+    log.debug(f'Done with endpoint = {endpoint}, q = {q}, start_date = {start_date}, end_date = {end_date}, caches = {len(caches)}, rows = {len(df)}.')
     return df
 
 
-def cache_reddit(endpoint: str, search: Tuple[str, str], start_date: date, end_date: date) -> List[dict]:
+def cache_reddit(endpoint: str, q: str, start_date: date, end_date: date) -> List[DateCache]:
     """
     Caches all comments (or submissions) posted within the given search filters.
 
-    Returns:  A list of cache metadata.
+    Returns:
+        List[DateCache]:  List of cache objects.
     """
 
     # Log.
-    log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}.')
+    log.debug(f'Begin with endpoint = {endpoint}, q = {q}, start_date = {start_date}, end_date = {end_date}.')
 
     # Never load future dates.
     # Never load current date (to prevent stale snapshot in cache).
     end_date = min(end_date, date.today())
 
     # Cache one day at a time.
-    metas = [
-        _cache_reddit_date(endpoint, search, start_date + timedelta(days=i))
-        for i in range((end_date - start_date).days)
+    caches = [
+        _cache_reddit_date(endpoint, q, start_date + timedelta(days=i))
+        for i in range((end_date - start_date).days + 1)
     ]
 
     # Log, return.
-    log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, start_date = {start_date}, end_date = {end_date}, metas = {len(metas):,}.')
-    return metas
+    log.debug(f'Done with endpoint = {endpoint}, q = {q}, start_date = {start_date}, end_date = {end_date}, caches = {len(caches):,}.')
+    return caches
 
 
-def _cache_reddit_date(endpoint: str, search: Tuple[str, str], target_date: date) -> dict:
+def _cache_reddit_date(endpoint: str, q: str, target_date: date) -> DateCache:
     """
     Caches all comments (or submissions) posted on `target_date` within the given search filters.
 
     Note:
         This function caches all API responses.  A separate local JSON file is created for every
-        `(target_date, search)` combination.  If a given request is already cached, we skip the API
-        call.
+        `(target_date, q)` combination.  If a given request is already cached, we skip the API call.
     """
 
-    # Get cache path for upcoming request.
-    cache_path = paths.data / f'reddit_{endpoint}s' / f'{search[0]}={search[1]}' / f'year={target_date.strftime("%Y")}' / f'month={target_date.strftime("%m")}' / f'day={target_date.strftime("%d")}' / '0.json.gz'
+    # Get cache object for upcoming request.
+    cache = DateCache(
+        date=target_date,
+        prefix=paths.data / f'reddit_{endpoint}s' / f'q={q}',
+        suffix='.json.gz',
+    )
 
     # If result is not cached, hit the API and cache the result.
-    if not cache_path.is_file():
-        data = _load_reddit(endpoint, search, date_to_datetime(target_date), date_to_datetime(target_date + timedelta(days=1)))
-        cache_path.parent.mkdir(parents=True)
-        with gzip.open(cache_path, 'wt') as file:
-            json.dump(data, file)
-        log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, target_date = {target_date}, rows = {sum(x["response"]["rows"] for x in data):,}.')
+    if not cache.path.is_file():
+        data = _load_reddit(endpoint, q, date_to_datetime(target_date), date_to_datetime(target_date + timedelta(days=1)))
+        cache.save(data)
+        log.debug(f'Done with endpoint = {endpoint}, q = {q}, target_date = {target_date}, rows = {sum(x["response"]["rows"] for x in data):,}.')
 
-    # Return cache file metadata.
-    return {
-        'search': search,
-        'date': target_date,
-        'path': cache_path,
-    }
+    # Return cache object.
+    return cache
 
 
-def _load_reddit(endpoint: str, search: Tuple[str, str], start_date: datetime, end_date: datetime, max_iterations: int = 3600) -> List[dict]:
+def _load_reddit(endpoint: str, q: str, start_date: datetime, end_date: datetime, max_iterations: int = 3600) -> List[dict]:
     """
     Iteratively queries the Pushshift API, and returns all comments (or submissions) posted within
     the given search filters.
@@ -110,7 +126,7 @@ def _load_reddit(endpoint: str, search: Tuple[str, str], start_date: datetime, e
 
         # Pull batch i.
         params = {
-            search[0]: search[1],
+            'q': q,
             'after': int(batch_min_date.timestamp()),
             'before': int(end_date.timestamp()),
             'size': 100,

@@ -24,7 +24,7 @@ def load_prices(symbol: str) -> DataFrame:
 
     # Get result from cache.
     df = pd.read_csv(cache_path)
-    log.debug(f'Fetched {df.shape[0]:,} records for symbol = {symbol}.')
+    log.debug(f'Fetched {len(df):,} records for symbol = {symbol}.')
 
     # Validate and rename columns.
     columns = {

@@ -1,5 +1,5 @@
 import logging
-from datetime import date, datetime
+from datetime import date
 from cc_idea.core.config import paths
 from cc_idea.extractors.reddit import load_reddit, cache_reddit
 from cc_idea.extractors.yahoo import load_prices
@@ -11,16 +11,16 @@ log = logging.getLogger('cc_idea')
 
 def _extract_and_transform(endpoint: str, symbols: list, start_date: date, end_date: date):
     for symbol in symbols:
-        metas = cache_reddit(
+        caches = cache_reddit(
             endpoint=endpoint,
-            search=('q', symbol),
+            q=symbol,
             start_date=start_date,
             end_date=end_date,
         )
         df_transformed = transform_reddit(
             endpoint=endpoint,
             q=symbol,
-            metas=metas,
+            caches=caches,
         )
 
 
@@ -31,7 +31,6 @@ if __name__ == '__main__':
 
     _extract_and_transform(
         endpoint='comment',
-        #symbols=['altcoin', 'bitcoin', 'btc', 'cardano', 'doge', 'eth', 'ethereum'],
         symbols=['cardano'],
         start_date=date(2020, 1, 1),
         end_date=date(2021, 12, 1),

@@ -18,18 +18,18 @@ def test_transform_reddit():
         shutil.rmtree(path, ignore_errors=True)
 
     # Extract.
-    metas = cache_reddit(
+    caches = cache_reddit(
         endpoint='comment',
-        search=('q', 'zoltan'),
+        q='zoltan',
         start_date=date(2020, 1, 1),
-        end_date=date(2020, 1, 4),
+        end_date=date(2020, 1, 3),
     )
 
     # Transform.
     df = transform_reddit(
         endpoint='comment',
         q='zoltan',
-        metas=metas,
+        caches=caches,
         chunk_size=0,
     )
 
@@ -37,7 +37,7 @@ def test_transform_reddit():
     cache_files = list(cache_paths[1].glob('*.parquet'))
     assert len(cache_files) == 1
     assert cache_files[0].name == f'min_date=2020-01-01, max_date=2020-01-03.snappy.parquet'
-    assert df.shape[0] == 3
+    assert len(df) == 3
     assert df.iloc[0]['created_date'] == date(2020, 1, 1)
     assert df.iloc[0]['num_comments'] == 24
 
