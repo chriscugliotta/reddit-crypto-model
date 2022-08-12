@@ -127,6 +127,7 @@ def _load_reddit(endpoint: str, search: dict, start_date: datetime, end_date: da
 
         # Pull batch i.
         params = {
+            # TODO:  Figure out how to parameterize:  'score': '>9',
             'after': int(batch_min_date.timestamp()),
             'before': int(end_date.timestamp()),
             'size': 100,

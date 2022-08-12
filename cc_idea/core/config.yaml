@@ -1,0 +1,10 @@
+extractors:
+    yahoo:
+        symbols: all
+    reddit:
+        endpoints: [comment, submission]
+        queries:
+            q: all
+            subreddit: all
+        min_date: '2020-01-01'
+        max_date: '2022-06-30'
