@@ -1,0 +1,150 @@
+BTC:
+    name: Bitcoin
+    yahoo_symbol: BTC-USD
+    reddit_q: btc, bitcoin
+    subreddits: Bitcoin
+ETH:
+    name: Ethereum
+    yahoo_symbol: ETH-USD
+    reddit_q: eth, ethereum
+    subreddits: ethereum
+USDT:
+    name: Tether
+    yahoo_symbol: USDT-USD
+    reddit_q: usdt
+    subreddits: tether
+USDC:
+    name: USD Coin
+    yahoo_symbol: USDC-USD
+    reddit_q: usdc
+    subreddits: USDC
+BNB:
+    name: BNB
+    yahoo_symbol: BNB-USD
+    reddit_q: bnb
+    subreddits: Binance
+XRP:
+    name: XRP
+    yahoo_symbol: XRP-USD
+    reddit_q: xrp
+    subreddits: XRP
+ADA:
+    name: Cardano
+    yahoo_symbol: ADA-USD
+    reddit_q: cardano
+    subreddits: Cardano
+BUSD:
+    name: Binance USD
+    yahoo_symbol: BUSD-USD
+    reddit_q: busd
+    subreddits: Binance
+SOL:
+    name: Solana
+    yahoo_symbol: SOL-USD
+    reddit_q: solana
+    subreddits: Solana
+DOT:
+    name: Polkadot
+    yahoo_symbol: DOT-USD
+    reddit_q: polkadot
+    subreddits: Polkadot
+DOGE:
+    name: Dogecoin
+    yahoo_symbol: DOGE-USD
+    reddit_q: doge, dogecoin
+    subreddits: Dogecoin
+AVAX:
+    name: Avalanche
+    yahoo_symbol: AVAX-USD
+    reddit_q: avax
+    subreddits: Avax
+MATIC:
+    name: Polygon
+    yahoo_symbol: MATIC-USD
+    reddit_q: matic
+    subreddits: 0xPolygon
+DAI:
+    name: Dai
+    yahoo_symbol: DAI-USD
+    reddit_q: dai
+    subreddits: MakerDAO
+SHIB:
+    name: Shiba Inu
+    yahoo_symbol: SHIB-USD
+    reddit_q: shib
+    subreddits: SHIBArmy, Shibainucoin, shib
+UNI:
+    name: Uniswap
+    yahoo_symbol: UNI1-USD
+    reddit_q: uniswap
+    subreddits: UniSwap
+TRX:
+    name: TRON
+    yahoo_symbol: TRX-USD
+    reddit_q: trx
+    subreddits: Tronix
+WBTC:
+    name: Wrapped Bitcoin
+    yahoo_symbol: WBTC-USD
+    reddit_q: wbtc
+    subreddits: WBTC
+ETC:
+    name: Ethereum Classic
+    yahoo_symbol: ETC-USD
+    reddit_q: eth, ethereum
+    subreddits: EthereumClassic
+LEO:
+    name: UNUS SED LEO
+    yahoo_symbol: LEO-USD
+    reddit_q: null
+    subreddits: null
+NEAR:
+    name: NEAR Protocol
+    yahoo_symbol: NEAR-USD
+    reddit_q: null
+    subreddits: nearprotocol
+LINK:
+    name: Chainlink
+    yahoo_symbol: LINK-USD
+    reddit_q: chainlink
+    subreddits: Chainlink, LINKTrader
+LTC:
+    name: Litecoin
+    yahoo_symbol: LTC-USD
+    reddit_q: litecoin
+    subreddits: litecoin
+FTT:
+    name: FTX Token
+    yahoo_symbol: FTT-USD
+    reddit_q: ftx
+    subreddits: FTX_Official
+CRO:
+    name: Cronos
+    yahoo_symbol: CRO-USD
+    reddit_q: null
+    subreddits: cro
+VTI:
+    name: Vanguard VTI
+    yahoo_symbol: VTI
+    reddit_q: vti
+    subreddits: Bogleheads
+GME:
+    name: GameStop
+    yahoo_symbol: GME
+    reddit_q: gme
+    subreddits: Superstonk
+AMC:
+    name: AMC Entertainment
+    yahoo_symbol: AMC
+    reddit_q: amc
+    subreddits: amcstock
+BBBY:
+    name: Bed Bath & Beyond
+    yahoo_symbol: BBBY
+    reddit_q: bbby
+    subreddits: BBBY
+BB:
+    name: BlackBerry
+    yahoo_symbol: BB
+    reddit_q: null
+    subreddits: BB_Stock

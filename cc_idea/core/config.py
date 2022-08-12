@@ -1,6 +1,6 @@
-import pandas as pd
 import yaml
 from pathlib import Path
+from typing import Dict
 from cc_idea.core.symbol import Symbol
 
 
@@ -19,9 +19,11 @@ def _get_config() -> dict:
         return yaml.load(file, Loader=yaml.FullLoader)
 
 
-def _get_symbols() -> dict:
-    df = pd.read_excel(Path(__file__).parent / 'symbols.xlsx')
-    return [Symbol(**row) for row in df.to_dict(orient='records')]
+def _get_symbols() -> Dict[str, Symbol]:
+    with open(Path(__file__).parent / 'symbols.yaml', 'r') as file:
+        data = yaml.load(file, Loader=yaml.FullLoader)
+        return {key: Symbol(symbol=key, **value) for key, value in data.items()}
+
 
 
 paths = Paths()

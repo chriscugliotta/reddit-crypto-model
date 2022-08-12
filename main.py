@@ -24,7 +24,7 @@ def _extract_prices() -> DataFrame:
     # Get in-scope symbols.
     yahoo_symbols = config['extractors']['yahoo']['symbols']
     if yahoo_symbols == 'all':
-        yahoo_symbols = [x.yahoo_symbol for x in symbols]
+        yahoo_symbols = [symbol.yahoo_symbol for _, symbol in symbols.items()]
 
     # Extract loop.
     for symbol in yahoo_symbols:
@@ -50,7 +50,7 @@ def _extract_reddit(endpoint: str, search_key: str):
     if values == 'all':
         values = [
             x
-            for symbol in symbols
+            for _, symbol in symbols.items()
             for x in (symbol.reddit_q if search_key == 'q' else symbol.subreddits)
         ]
     values = sorted(list(set(values)))
