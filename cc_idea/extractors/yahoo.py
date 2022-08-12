@@ -1,7 +1,9 @@
 import logging
 import pandas as pd
 import yfinance as yf
+from datetime import date, timedelta
 from pandas import DataFrame
+from cc_idea.core.cache import DateRangeCache
 from cc_idea.core.config import paths
 log = logging.getLogger(__name__)
 
@@ -10,20 +12,22 @@ log = logging.getLogger(__name__)
 def load_prices(symbol: str) -> DataFrame:
     """Returns complete price history (at daily granularity) for given symbol."""
 
-    # Get cache path for upcoming request.
-    cache_path = paths.data / 'yahoo_finance_price_history' / f'symbol={symbol}' / '0.csv.gz'
-    cache_path.parent.mkdir(exist_ok=True, parents=True)
+    # Get cache object.
+    prefix = paths.data / 'yahoo_finance_price_history' / f'symbol={symbol}'
+    cache = DateRangeCache.from_prefix(prefix)
 
-    # Get price history via Yahoo Finance API.
-    # TODO:  Figure out caching logic.
-    if not cache_path.is_file():
+    # If cache is empty or stale, hit the API, and cache the result.
+    # Never load current date (to prevent stale snapshot in cache).
+    if cache.max_date is None or cache.max_date < date.today() - timedelta(days=1):
         ticker = yf.Ticker(symbol)
         df = ticker.history(period='max')
-        df.to_csv(cache_path, compression='gzip')
+        df = df.reset_index()
+        df = df[df['Date'] < date.today().strftime('%Y-%m-%d')]
+        df = cache.overwrite(df, 'Date')
         del df
 
     # Get result from cache.
-    df = pd.read_csv(cache_path)
+    df = cache.load()
     log.debug(f'Fetched {len(df):,} records for symbol = {symbol}.')
 
     # Validate and rename columns.
@@ -40,5 +44,4 @@ def load_prices(symbol: str) -> DataFrame:
     df = df.rename(columns={v['rename']: k for k, v in columns.items()})
     df = df.astype({k: v['type'] for k, v in columns.items()})
     df.insert(0, 'symbol', symbol)
-
     return df

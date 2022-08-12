@@ -19,7 +19,7 @@ class DateCache:
         and the rest of the codebase can be agnostic to the change.
     """
 
-    def __init__(self, date: date, prefix: Path, suffix: str):
+    def __init__(self, date: date, prefix: Path, suffix: str = '.json.gz'):
         self.date: date = date
         self.prefix: str = prefix
         self.suffix: str = suffix
@@ -42,7 +42,7 @@ class DateRangeCache:
     """A cache file containing an arbitrary date range of timephased data."""
 
     @classmethod
-    def from_prefix(cls, prefix: Path, suffix: str) -> 'DateRangeCache':
+    def from_prefix(cls, prefix: Path, suffix: str = '.snappy.parquet') -> 'DateRangeCache':
         """
         Finds the cache file at the given prefix, then instantiates an object that describes it.
 
@@ -114,4 +114,20 @@ class DateRangeCache:
             old_path.unlink()
             log.debug(f'Deleted {len(old_data):,} rows at:  {old_path.relative_to(self.prefix).as_posix()}.')
 
+        return new_data
+
+    def overwrite(self, new_data: DataFrame, date_column: str) -> DataFrame:
+
+        # Does a previous cache already exist?  If so, we will delete it.
+        if self.path.is_file():
+            self.path.unlink()
+
+        # Get new date range.
+        self.min_date = new_data[date_column].min().date()
+        self.max_date = new_data[date_column].max().date()
+        self.path = self.prefix / f'min_date={self.min_date}, max_date={self.max_date}{self.suffix}'
+
+        # Create new cache file.
+        self.save(new_data)
+        log.debug(f'Cached {len(new_data):,} rows at:  {self.path.relative_to(self.prefix).as_posix()}.')
         return new_data
