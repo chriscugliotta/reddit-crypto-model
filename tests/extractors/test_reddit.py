@@ -11,7 +11,7 @@ def test_load_reddit():
         ('[A, C]', 'cardano', datetime(2021, 1, 1, 0, 0, 0), datetime(2021, 1, 1, 16, 0, 0)),
     ]
     results = {
-        name: _load_reddit('comment', {'q': q}, start_date, end_date)
-        for name, q, start_date, end_date in time_intervals
+        name: _load_reddit('comment', min_date, max_date, {'word': word})
+        for name, word, min_date, max_date in time_intervals
     }
     assert len(results['[A, C]']) == len(results['[A, B]']) + len(results['[B, C]'])

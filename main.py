@@ -17,54 +17,56 @@ def _extract_prices() -> DataFrame:
     # Log.
     log.info('Begin.')
 
-    # Abort.
-    if 'yahoo' not in config['extractors']:
-        return
+    # Replace `all` shortcut with explicit list.
+    def _get_symbols(query: dict) -> list:
+        if query['symbols'] == 'all':
+            return [x.yahoo_symbol for x in symbols.values()]
+        else:
+            return symbols
 
-    # Get in-scope symbols.
-    yahoo_symbols = config['extractors']['yahoo']['symbols']
-    if yahoo_symbols == 'all':
-        yahoo_symbols = [symbol.yahoo_symbol for _, symbol in symbols.items()]
-
-    # Extract loop.
-    for symbol in yahoo_symbols:
-        load_prices(symbol)
+    # Loop and execute queries.
+    for query in config['extractors']['yahoo'].get('queries', []):
+        for symbol in _get_symbols(query):
+            load_prices(symbol)
 
     # Log.
     log.info('Done.')
 
 
-def _extract_reddit(endpoint: str, search_key: str):
+def _extract_reddit():
     """Extract Reddit comments or submissions."""
 
-    # Abort.
-    if 'reddit' not in config['extractors']:
-        return
-    if endpoint not in config['extractors']['reddit']['endpoints']:
-        return
-    if search_key not in config['extractors']['reddit']['queries']:
-        return
+    # Log.
+    log.info('Begin.')
 
-    # Get in-scope queries.
-    values = config['extractors']['reddit']['queries'][search_key]
-    if values == 'all':
-        values = [
-            x
-            for _, symbol in symbols.items()
-            for x in (symbol.reddit_q if search_key == 'q' else symbol.subreddits)
+    # Parses config.
+    def _get_filters(query: dict) -> list:
+        if 'words' in query:
+            filter_type = 'word'
+            filter_values = query['words'] if query['words'] != 'all' else [x for _, symbol in symbols.items() for x in symbol.reddit_q]
+        if 'subreddits' in query:
+            filter_type = 'subreddit'
+            filter_values = query['subreddits'] if query['subreddits'] != 'all' else [x for _, symbol in symbols.items() for x in symbol.subreddits]
+        return [
+            {
+                'min_score': query.get('min_score'),
+                filter_type: x,
+            }
+            for x in sorted(list(set(filter_values)))
         ]
-    values = sorted(list(set(values)))
 
-    # Extract.
-    log.info(f'Begin:  endpoint = {endpoint}, search_key = {search_key}, values = {len(values)}.')
-    for value in values:
-        cache_reddit(
-            endpoint=endpoint,
-            search={search_key: value},
-            start_date=datetime.strptime(config['extractors']['reddit']['min_date'], '%Y-%m-%d').date(),
-            end_date=datetime.strptime(config['extractors']['reddit']['max_date'], '%Y-%m-%d').date(),
-        )
-    log.info(f'Done.')
+    # Loop and execute queries.
+    for query in config['extractors']['reddit'].get('queries', []):
+        for filter in _get_filters(query):
+            cache_reddit(
+                endpoint=query['endpoint'],
+                min_date=datetime.strptime(config['extractors']['reddit']['min_date'], '%Y-%m-%d').date(),
+                max_date=datetime.strptime(config['extractors']['reddit']['max_date'], '%Y-%m-%d').date(),
+                filters=filter,
+            )
+
+    # Log.
+    log.info('Done.')
 
 
 
@@ -77,10 +79,7 @@ if __name__ == '__main__':
 
     # Extract.
     _extract_prices()
-    _extract_reddit('comment', 'q')
-    _extract_reddit('comment', 'subreddit')
-    _extract_reddit('submission', 'q')
-    _extract_reddit('submission', 'subreddit')
+    _extract_reddit()
 
     # Log.
     log.info('Done.')

@@ -11,8 +11,8 @@ def test_transform_reddit():
 
     # Clean up.
     cache_paths = [
-        paths.data / 'reddit_comments' / 'q=zoltan',
-        paths.data / 'reddit_comments_aggregated' / 'q=zoltan',
+        paths.data / 'reddit_comments' / 'min_score=null' / 'word=zoltan',
+        paths.data / 'reddit_comments_aggregated' / 'min_score=null' / 'word=zoltan',
     ]
     for path in cache_paths:
         shutil.rmtree(path, ignore_errors=True)
@@ -20,15 +20,15 @@ def test_transform_reddit():
     # Extract.
     caches = cache_reddit(
         endpoint='comment',
-        search={'q': 'zoltan'},
-        start_date=date(2020, 1, 1),
-        end_date=date(2020, 1, 3),
+        min_date=date(2020, 1, 1),
+        max_date=date(2020, 1, 3),
+        filters={'min_score': None, 'word': 'zoltan'},
     )
 
     # Transform.
     df = transform_reddit(
         endpoint='comment',
-        search={'q': 'zoltan'},
+        filters={'min_score': None, 'word': 'zoltan'},
         caches=caches,
         chunk_size=0,
     )

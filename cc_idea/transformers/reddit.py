@@ -2,6 +2,7 @@ import json
 import logging
 import multiprocessing as mp
 from datetime import datetime
+from pathlib import Path
 from pandas import DataFrame
 from textblob import TextBlob
 from typing import List
@@ -17,16 +18,13 @@ sia = SentimentIntensityAnalyzer()
 
 # TODO:  Finalize aggregated metrics.
 # TODO:  Handle submissions.
-def transform_reddit(endpoint: str, search: dict, caches: List[DateCache], chunk_size: int = 100) -> DataFrame:
+def transform_reddit(endpoint: str, filters: dict, caches: List[DateCache], chunk_size: int = 100) -> DataFrame:
 
     # Log.
-    log.debug(f'Begin with endpoint = {endpoint}, search = {search}, caches = {len(caches)}.')
+    log.debug(f'Begin with endpoint = {endpoint}, filters = {filters}, caches = {len(caches)}.')
 
     # Get already-cached date range (if any cache exists).
-    range_cache = DateRangeCache.from_prefix(
-        prefix=paths.data / f'reddit_{endpoint}s_aggregated' / ', '.join(f'{k}={v}' for k, v in search.items()),
-        suffix='.snappy.parquet',
-    )
+    range_cache = DateRangeCache.from_prefix(_get_cache_prefix(endpoint, filters))
 
     # How many inbound days need to be processed?
     inbound = [
@@ -48,19 +46,26 @@ def transform_reddit(endpoint: str, search: dict, caches: List[DateCache], chunk
         chunk += [cache]
         size += cache.path.stat().st_size
         if size > (chunk_size * 1e6) or i == len(inbound) - 1:
-            df = _transform_chunk(endpoint, search, chunk, size, range_cache)
+            df = _transform_chunk(endpoint, filters, chunk, size, range_cache)
             chunk = []
             size = 0
 
     # Log, return.
-    log.debug(f'Done with endpoint = {endpoint}, search = {search}, rows = {len(df)}.')
+    log.debug(f'Done with endpoint = {endpoint}, filters = {filters}, rows = {len(df)}.')
     return df
 
 
-def _transform_chunk(endpoint: str, search: dict, caches: List[dict], size: int, range_cache: DateRangeCache) -> DataFrame:
+def _get_cache_prefix(endpoint: str, filters: dict) -> Path:
+    """Returns cache path prefix for given endpoint and filter set."""
+    min_score = filters.get('min_score') if filters.get('min_score') else 'null'
+    suffix = ', '.join(f'{k}={v}' for k, v in filters.items() if k != 'min_score')
+    return paths.data / f'reddit_{endpoint}s_aggregated' / f'min_score={min_score}' / suffix
+
+
+def _transform_chunk(endpoint: str, filters: dict, caches: List[dict], size: int, range_cache: DateRangeCache) -> DataFrame:
 
     # Log
-    log.debug(f'Begin with endpoint = {endpoint}, search = {search}, caches = {len(caches):,}, size = {size / 1e6:.2f} MB.')
+    log.debug(f'Begin with endpoint = {endpoint}, filters = {filters}, caches = {len(caches):,}, size = {size / 1e6:.2f} MB.')
 
     # To reduce memory, we will only load a subset of columns.
     columns = [
@@ -75,9 +80,9 @@ def _transform_chunk(endpoint: str, search: dict, caches: List[dict], size: int,
     # Get inbound records that need to be processed.
     df_comments = load_reddit(
         endpoint=endpoint,
-        search=search,
-        start_date=None,
-        end_date=None,
+        min_date=None,
+        max_date=None,
+        filters=filters,
         caches=caches,
         columns=columns,
     )
@@ -88,7 +93,7 @@ def _transform_chunk(endpoint: str, search: dict, caches: List[dict], size: int,
     # Join, aggregate, validate, cache.
     return (df_comments
         .pipe(_join_sentiments, df_sentiments)
-        .pipe(_aggregate_comments, endpoint, search)
+        .pipe(_aggregate_comments, endpoint, filters)
         .pipe(_update_cache, range_cache)
     )
 
@@ -165,8 +170,8 @@ def _join_sentiments(df_comments: DataFrame, df_sentiments: DataFrame) -> DataFr
     return df
 
 
-def _aggregate_comments(df_comments: DataFrame, endpoint: str, search: dict) -> DataFrame:
-    """Aggregates comments, scores, and sentiments up to (search, created_date) level."""
+def _aggregate_comments(df_comments: DataFrame, endpoint: str, filters: dict) -> DataFrame:
+    """Aggregates comments, scores, and sentiments up to (filters, created_date) level."""
 
     columns = [
         'negative',
@@ -190,11 +195,11 @@ def _aggregate_comments(df_comments: DataFrame, endpoint: str, search: dict) -> 
         return df
 
     df = (df_comments
-        .assign(search=json.dumps(search))
+        .assign(filters=json.dumps(filters))
         .assign(num_comments=1)
         .pipe(get_weighted)
-        .loc[:, ['search', 'created_date', 'num_comments', 'score'] + columns + ['w_' + x for x in columns]]
-        .groupby(['search', 'created_date'], as_index=False)
+        .loc[:, ['filters', 'created_date', 'num_comments', 'score'] + columns + ['w_' + x for x in columns]]
+        .groupby(['filters', 'created_date'], as_index=False)
         .sum()
         .pipe(get_averages)
     )
