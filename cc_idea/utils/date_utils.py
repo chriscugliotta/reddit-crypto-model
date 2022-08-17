@@ -13,6 +13,6 @@ def epoch_to_est(column: Series):
     # Convert from epoch to UTC.
     column = pd.to_datetime(column, unit='s')
     # Convert from UTC to EST.
-    column = column.dt.tz_localize('UTC').dt.tz_convert('EST')
+    column = column.dt.tz_localize('UTC').dt.tz_convert('America/New_York')
     # Convert from timezone-aware to timezone-naive.  (Yikes.)
     return pd.to_datetime(column.dt.strftime('%Y-%m-%d %H:%M:%S.%f'))
