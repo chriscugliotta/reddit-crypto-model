@@ -1,21 +1,23 @@
 from datetime import date
-from cc_idea.extractors.reddit import load_reddit
-from cc_idea.extractors.yahoo import load_prices
+from cc_idea.extractors.reddit import RedditExtractor
+from cc_idea.extractors.yahoo import YahooFinanceExtractor
 from cc_idea.reports.price_history.report import load_report
 
 
 
 def test_price_history_report():
 
-    df_comments = load_reddit(
+    df_comments = RedditExtractor().extract(
         endpoint='comment',
+        filters={'min_score': 2, 'word': 'doge'},
         min_date=date(2020, 1, 1),
         max_date=date(2020, 1, 8),
-        filters={'min_score': 2, 'word': 'doge'},
+        read=True,
     )
 
-    df_prices = load_prices(
-        symbol='DOGE-USD',
+    df_prices = YahooFinanceExtractor().extract(
+        symbols=['DOGE-USD'],
+        read=True,
     )
 
     df_report = load_report(df_prices, df_comments)

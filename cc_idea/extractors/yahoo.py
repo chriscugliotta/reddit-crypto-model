@@ -1,47 +1,89 @@
 import logging
-import pandas as pd
+import pandas
 import yfinance as yf
 from datetime import date, timedelta
 from pandas import DataFrame
+from typing import Dict, List
 from cc_idea.core.cache import DateRangeCache
 from cc_idea.core.config import paths
+from cc_idea.core.extractor import Extractor
 log = logging.getLogger(__name__)
 
 
 
-def load_prices(symbol: str) -> DataFrame:
-    """Returns complete price history (at daily granularity) for given symbol."""
+class YahooFinanceExtractor(Extractor):
 
-    # Get cache object.
-    prefix = paths.data / 'yahoo_finance_price_history' / f'symbol={symbol}'
-    cache = DateRangeCache.from_prefix(prefix)
+    def __init__(self):
+        self.schema: Dict[str, str] = {
+            'symbol': 'string',
+            'date': 'datetime64',
+            'open': 'float64',
+            'high': 'float64',
+            'low': 'float64',
+            'close': 'float64',
+            'volume': 'int64',
+            'dividends': 'int64',
+            'stock_splits': 'int64',
+        }
+        self.unique_key: List[str] = [
+            'symbol',
+            'date',
+        ]
 
-    # If cache is empty or stale, hit the API, and cache the result.
-    # Never load current date (to prevent stale snapshot in cache).
-    if cache.max_date is None or cache.max_date < date.today() - timedelta(days=1):
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(period='max')
-        df = df.reset_index()
-        df = df[df['Date'] < date.today().strftime('%Y-%m-%d')]
-        df = cache.overwrite(df, 'Date')
-        del df
+    def extract(self, symbols: List[str], read: bool = False) -> List[DateRangeCache]:
+        """
+        Extracts (and caches) the daily price history for given list of symbols.
 
-    # Get result from cache.
-    df = cache.load()
-    log.debug(f'Fetched {len(df):,} records for symbol = {symbol}.')
+        Args:
+            symbols (List[str]):
+                List of stock symbols recognized by Yahoo Finance, e.g. `[VTI, BTC-USD]`.
 
-    # Validate and rename columns.
-    columns = {
-        'date': {'rename': 'Date', 'type': 'datetime64[ns]'},
-        'open': {'rename': 'Open', 'type': 'float64'},
-        'high': {'rename': 'High', 'type': 'float64'},
-        'low': {'rename': 'Low', 'type': 'float64'},
-        'close':  {'rename': 'Close', 'type': 'float64'},
-        'volume':  {'rename': 'Volume', 'type': 'int64'},
-        'dividends':  {'rename': 'Dividends', 'type': 'int64'},
-        'stock_splits':  {'rename': 'Stock Splits',  'type': 'int64'},
-    }
-    df = df.rename(columns={v['rename']: k for k, v in columns.items()})
-    df = df.astype({k: v['type'] for k, v in columns.items()})
-    df.insert(0, 'symbol', symbol)
-    return df
+            read (bool):
+                If true, dataframe is returned instead of cache objects.
+
+        Returns:
+            List[DateRangeCache]:  List of cache objects.
+        """
+        caches = [self._extract_symbol(x) for x in symbols]
+        return caches if not read else self.read(symbols)
+
+    def _extract_symbol(self, symbol: str) -> DateRangeCache:
+        """Extracts (and caches) the daily price history for a single symbol."""
+
+        # Get cache object.
+        prefix = paths.data / 'yahoo_finance_price_history' / f'symbol={symbol}'
+        cache = DateRangeCache.from_prefix(prefix)
+
+        # If cache is empty or stale, hit the API, and cache the result.
+        # Never load current date (to prevent stale snapshot in cache).
+        if cache.max_date is None or cache.max_date < date.today() - timedelta(days=1):
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(period='max')
+            df.insert(0, 'symbol', symbol)
+            df = df.reset_index()
+            df = df[df['Date'] < date.today().strftime('%Y-%m-%d')]
+            df = cache.overwrite(df, 'Date')
+            del df
+
+        return cache
+
+    def _read(self, symbols: List[str] = None, caches: List[DateRangeCache] = None) -> DataFrame:
+        """Reads previously-cached data into a dataframe."""
+
+        # If cache targets not provided, search for them.
+        if caches is None:
+            caches = [
+                DateRangeCache.from_prefix(x.parent)
+                for x in (paths.data / 'yahoo_finance_price_history').rglob('*.snappy.parquet')
+                if symbols is None or x.parts[-2][7:] in symbols
+            ]
+
+        # Read cache objects into dataframe.
+        # Also, rename columns from PascalCase to snake_case.
+        df = pandas.concat([cache.load() for cache in caches], ignore_index=True)
+        renames = {column: column.lower().replace(' ', '_') for column in df}
+        df = df.rename(columns=renames)
+
+        # Log, return.
+        log.debug(f'Done:  records = {len(df):,}, symbols = {len(caches):,}.')
+        return df

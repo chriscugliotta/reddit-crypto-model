@@ -9,7 +9,7 @@ from typing import List
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from cc_idea.core.cache import DateCache, DateRangeCache
 from cc_idea.core.config import paths
-from cc_idea.extractors.reddit import load_reddit
+from cc_idea.extractors.reddit import RedditExtractor
 from cc_idea.utils.date_utils import epoch_to_est
 log = logging.getLogger(__name__)
 sia = SentimentIntensityAnalyzer()
@@ -67,24 +67,13 @@ def _transform_chunk(endpoint: str, filters: dict, caches: List[dict], size: int
     # Log
     log.debug(f'Begin with endpoint = {endpoint}, filters = {filters}, caches = {len(caches):,}, size = {size / 1e6:.2f} MB.')
 
-    # To reduce memory, we will only load a subset of columns.
-    columns = [
-        'id',
-        'created_utc',
-        'author',
-        'subreddit',
-        'body',
-        'score',
-    ]
-
     # Get inbound records that need to be processed.
-    df_comments = load_reddit(
+    df_comments = RedditExtractor().read(
         endpoint=endpoint,
+        filters=filters,
         min_date=None,
         max_date=None,
-        filters=filters,
         caches=caches,
-        columns=columns,
     )
 
     # Perform sentiment analysis.
