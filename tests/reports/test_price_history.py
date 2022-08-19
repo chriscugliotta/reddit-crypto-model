@@ -9,7 +9,7 @@ def test_price_history_report():
 
     df_comments = RedditExtractor().extract(
         endpoint='comment',
-        filters={'min_score': 2, 'word': 'doge'},
+        filters={'min_score': 3, 'word': 'doge'},
         min_date=date(2020, 1, 1),
         max_date=date(2020, 1, 8),
         read=True,

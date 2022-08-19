@@ -113,7 +113,7 @@ class RedditExtractor(Extractor):
 
             # Pull batch i.
             params = {
-                'score': '>' + str(filters['min_score']) if filters.get('min_score') else None,
+                'score': '>' + str(filters['min_score'] - 1) if filters.get('min_score') else None,
                 'q': filters.get('word'),
                 'subreddit': filters.get('subreddit'),
                 'after': int(batch_min_date.timestamp()),

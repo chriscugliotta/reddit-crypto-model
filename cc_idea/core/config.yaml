@@ -7,15 +7,15 @@ extractors:
         max_date: '2022-06-30'
         queries:
           - endpoint: comment
-            min_score: 2
+            min_score: 3
             words: all
           - endpoint: comment
-            min_score: 2
+            min_score: 3
             subreddits: all
           - endpoint: submission
-            min_score: 2
+            min_score: 3
             words: all
           - endpoint: submission
-            min_score: 2
+            min_score: 3
             subreddits: all
 
