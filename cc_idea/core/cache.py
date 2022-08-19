@@ -107,12 +107,12 @@ class DateRangeCache:
 
         # Create new cache file.
         self.save(new_data)
-        log.debug(f'Cached {len(new_data):,} rows at:  {self.path.relative_to(self.prefix).as_posix()}.')
+        log.debug(f'Cached {len(new_data):,} rows at:  {self.path.relative_to(self.prefix.parent).as_posix()}.')
 
         # Delete old cache file.
         if old_path.is_file():
             old_path.unlink()
-            log.debug(f'Deleted {len(old_data):,} rows at:  {old_path.relative_to(self.prefix).as_posix()}.')
+            log.debug(f'Deleted {len(old_data):,} rows at:  {old_path.relative_to(self.prefix.parent).as_posix()}.')
 
         return new_data
 
@@ -129,5 +129,5 @@ class DateRangeCache:
 
         # Create new cache file.
         self.save(new_data)
-        log.debug(f'Cached {len(new_data):,} rows at:  {self.path.relative_to(self.prefix).as_posix()}.')
+        log.debug(f'Cached {len(new_data):,} rows at:  {self.path.relative_to(self.prefix.parent).as_posix()}.')
         return new_data
