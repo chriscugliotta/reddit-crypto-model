@@ -132,7 +132,7 @@ GME:
     name: GameStop
     yahoo_symbol: GME
     reddit_q: gme
-    subreddits: Superstonk
+    subreddits: null
 AMC:
     name: AMC Entertainment
     yahoo_symbol: AMC

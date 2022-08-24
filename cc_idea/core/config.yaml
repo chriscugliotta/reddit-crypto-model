@@ -19,3 +19,6 @@ extractors:
             min_score: 3
             subreddits: all
 
+transformers:
+    sentiment:
+        chunk_size: 100

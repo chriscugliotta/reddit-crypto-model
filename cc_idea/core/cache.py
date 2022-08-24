@@ -79,7 +79,7 @@ class DateRangeCache:
         """Reads data from cache."""
         return pd.read_parquet(self.path)
 
-    def append(self, new_data: DataFrame, date_column: str) -> DataFrame:
+    def append(self, new_data: DataFrame, date_column: str, min_date: date = None, max_date: date = None) -> DataFrame:
         """
         Appends inbound data to existing cache file.  If no file exists, a new one is created.
 
@@ -101,8 +101,8 @@ class DateRangeCache:
 
         # Get new date range.
         old_path = self.path
-        self.min_date = new_data[date_column].min().date()
-        self.max_date = new_data[date_column].max().date()
+        self.min_date = new_data[date_column].min().date() if min_date is None else min_date
+        self.max_date = new_data[date_column].max().date() if max_date is None else max_date
         self.path = self.prefix / f'min_date={self.min_date}, max_date={self.max_date}{self.suffix}'
 
         # Create new cache file.
@@ -116,15 +116,15 @@ class DateRangeCache:
 
         return new_data
 
-    def overwrite(self, new_data: DataFrame, date_column: str) -> DataFrame:
+    def overwrite(self, new_data: DataFrame, date_column: str, min_date: date = None, max_date: date = None) -> DataFrame:
 
         # Does a previous cache already exist?  If so, we will delete it.
         if self.path.is_file():
             self.path.unlink()
 
         # Get new date range.
-        self.min_date = new_data[date_column].min().date()
-        self.max_date = new_data[date_column].max().date()
+        self.min_date = new_data[date_column].min().date() if min_date is None else min_date
+        self.max_date = new_data[date_column].max().date() if max_date is None else max_date
         self.path = self.prefix / f'min_date={self.min_date}, max_date={self.max_date}{self.suffix}'
 
         # Create new cache file.

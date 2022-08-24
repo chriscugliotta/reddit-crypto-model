@@ -1,3 +1,4 @@
+import json
 import logging
 import pandas
 from datetime import date, datetime, timedelta
@@ -21,6 +22,7 @@ class RedditExtractor(Extractor):
             'created_utc': 'float64',
             'author': 'string',
             'subreddit': 'string',
+            'title': 'string',
             'body': 'string',
             'score': 'int64',
         }
@@ -183,11 +185,15 @@ class RedditExtractor(Extractor):
         df = pandas.concat(frames, ignore_index=True)
 
         # Log, return.
-        log.debug(f'Done with endpoint = {endpoint}, filters = {filters}, min_date = {min_date}, max_date = {max_date}, caches = {len(caches)}, rows = {len(df)}.')
+        log.debug(f'Done with endpoint = {endpoint}, filters = {filters}, min_date = {min_date}, max_date = {max_date}, caches = {len(caches)}, rows = {len(df):,}.')
         return df
 
     def _get_cache_prefix(self, endpoint: str, filters: dict) -> Path:
-        """Returns cache path prefix for given endpoint and filter set."""
+        """Returns cache path prefix for given endpoint and filter set.  (Organizes disk storage.)"""
         min_score = filters.get('min_score') if filters.get('min_score') else 'null'
         suffix = ', '.join(f'{k}={v}' for k, v in filters.items() if k != 'min_score')
         return paths.data / f'reddit_{endpoint}s' / f'min_score={min_score}' / suffix
+
+    def _get_cache_key(self, endpoint: str, filters: dict) -> str:
+        """Returns cache dict key for given endpoint and filter set.  (Organizes in-memory storage.)"""
+        return json.dumps({'endpoint': endpoint, 'filters': filters}, sort_keys=True)
