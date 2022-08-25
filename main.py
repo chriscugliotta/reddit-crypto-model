@@ -43,11 +43,9 @@ def transform_sentiment(data: Dict, endpoint: str) -> Dict[Tuple[str, str], Date
     }
 
 
-
-if __name__ == '__main__':
+def main():
 
     # Log.
-    initialize_logger(paths.repo / 'log.log')
     log.info('Begin.')
     log.info(f'config = \n{yaml.dump(config._yaml, indent=4)}')
 
@@ -63,3 +61,13 @@ if __name__ == '__main__':
 
     # Log.
     log.info('Done.')
+
+
+
+if __name__ == '__main__':
+    initialize_logger(paths.repo / 'log.log')
+    try:
+        main()
+    except:
+        log.exception('Error.')
+        raise

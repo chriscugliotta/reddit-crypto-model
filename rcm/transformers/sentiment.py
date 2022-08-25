@@ -164,7 +164,8 @@ class SentimentTransformer:
         # Stop timer.
         end_time = datetime.now()
         elapsed_time = (end_time - start_time).total_seconds()
-        log.debug(f'Analyzed {len(inputs):,} comments in {elapsed_time:.2f} seconds ({1000 * elapsed_time / len(inputs):.2f} ms per comment).')
+        average_time = 1000 * elapsed_time / len(inputs) if len(inputs) != 0 else 0
+        log.debug(f'Analyzed {len(inputs):,} comments in {elapsed_time:.2f} seconds ({average_time:.2f} ms per comment).')
 
         # Return outputted tuples as dataframe.
         return (

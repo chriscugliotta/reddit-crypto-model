@@ -187,7 +187,10 @@ class RedditExtractor(Extractor):
             for cache in caches
             for result in cache.load()
         ]
-        df = pandas.concat(frames, ignore_index=True)
+        if len(frames) > 0:
+            df = pandas.concat(frames, ignore_index=True)
+        else:
+            df = DataFrame()
 
         # Log, return.
         log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, min_date = {min_date}, max_date = {max_date}, caches = {len(caches)}, rows = {len(df):,}.')
