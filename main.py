@@ -2,13 +2,13 @@ import logging
 import yaml
 from pandas import DataFrame
 from typing import Dict, List, Tuple
-from cc_idea.core.cache import DateCache, DateRangeCache
-from cc_idea.core.config import paths, config
-from cc_idea.extractors.reddit import RedditExtractor
-from cc_idea.extractors.yahoo import YahooFinanceExtractor
-from cc_idea.transformers.sentiment import SentimentTransformer
-from cc_idea.utils.log_utils import initialize_logger
-log = logging.getLogger('cc_idea')
+from rcm.core.cache import DateCache, DateRangeCache
+from rcm.core.config import paths, config
+from rcm.extractors.reddit import RedditExtractor
+from rcm.extractors.yahoo import YahooFinanceExtractor
+from rcm.transformers.sentiment import SentimentTransformer
+from rcm.utils.log_utils import initialize_logger
+log = logging.getLogger('rcm')
 
 
 
@@ -21,7 +21,7 @@ def extract_yahoo() -> DataFrame:
 
 
 def extract_reddit(endpoint: str) -> Dict[Tuple[str, str], List[DateCache]]:
-    """Extracts Reddit comments and submissions via Pushshift API."""
+    """Extracts Reddit comments or submissions via Pushshift API."""
     return {
         query['search']: RedditExtractor().extract(**query)
         for query in config.extractors.reddit.queries
@@ -29,7 +29,7 @@ def extract_reddit(endpoint: str) -> Dict[Tuple[str, str], List[DateCache]]:
     }
 
 
-def transform_sentiment(data: Dict, endpoint: str) -> Dict[str, DateRangeCache]:
+def transform_sentiment(data: Dict, endpoint: str) -> Dict[Tuple[str, str], DateRangeCache]:
     """Performs sentiment analysis on Reddit data via VaderSentiment and TextBlob."""
     return {
         query['search']: SentimentTransformer().transform(

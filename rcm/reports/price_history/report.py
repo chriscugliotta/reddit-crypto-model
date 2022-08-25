@@ -1,9 +1,9 @@
 import logging
 import pandas as pd
 from pandas import DataFrame, Series
-from cc_idea.core.config import paths
-from cc_idea.utils.excel_utils import to_excel
-from cc_idea.utils.date_utils import epoch_to_est
+from rcm.core.config import paths
+from rcm.utils.excel_utils import to_excel
+from rcm.utils.date_utils import epoch_to_est
 log = logging.getLogger(__name__)
 
 

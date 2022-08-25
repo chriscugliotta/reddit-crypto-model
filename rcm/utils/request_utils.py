@@ -1,6 +1,6 @@
 import requests
 from datetime import datetime
-from cc_idea.utils.retry_utils import retry_with_timeout
+from rcm.utils.retry_utils import retry_with_timeout
 
 
 

@@ -4,11 +4,11 @@ from datetime import date, datetime, timedelta
 from pandas import DataFrame
 from pathlib import Path
 from typing import Dict, List, Tuple
-from cc_idea.core.cache import DateCache
-from cc_idea.core.config import paths
-from cc_idea.core.extractor import Extractor
-from cc_idea.utils.date_utils import date_to_datetime, path_to_date
-from cc_idea.utils.request_utils import get_request
+from rcm.core.cache import DateCache
+from rcm.core.config import paths
+from rcm.core.extractor import Extractor
+from rcm.utils.date_utils import date_to_datetime, path_to_date
+from rcm.utils.request_utils import get_request
 log = logging.getLogger(__name__)
 
 

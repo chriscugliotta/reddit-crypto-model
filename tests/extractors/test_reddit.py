@@ -1,5 +1,5 @@
 from datetime import datetime
-from cc_idea.extractors.reddit import RedditExtractor
+from rcm.extractors.reddit import RedditExtractor
 
 
 

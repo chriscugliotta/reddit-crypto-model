@@ -1,8 +1,8 @@
 import shutil
 from datetime import date
-from cc_idea.core.config import paths
-from cc_idea.extractors.reddit import RedditExtractor
-from cc_idea.transformers.sentiment import SentimentTransformer
+from rcm.core.config import paths
+from rcm.extractors.reddit import RedditExtractor
+from rcm.transformers.sentiment import SentimentTransformer
 
 
 

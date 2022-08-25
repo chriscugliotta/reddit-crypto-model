@@ -3,7 +3,7 @@ import yaml
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
-from cc_idea.core.symbol import Symbol
+from rcm.core.symbol import Symbol
 
 
 
@@ -11,7 +11,7 @@ class Paths:
     """Common file paths."""
     def __init__(self):
         self.repo: Path = Path(__file__).absolute().parents[2]
-        self.package: Path = self.repo / 'cc_idea'
+        self.package: Path = self.repo / 'rcm'
         self.reports: Path = self.package / 'reports'
         self.data: Path = self.repo / 'data'
         self.tests: Path = self.repo / 'tests'

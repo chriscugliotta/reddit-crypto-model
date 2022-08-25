@@ -4,9 +4,9 @@ import yfinance as yf
 from datetime import date, timedelta
 from pandas import DataFrame
 from typing import Dict, List
-from cc_idea.core.cache import DateRangeCache
-from cc_idea.core.config import paths
-from cc_idea.core.extractor import Extractor
+from rcm.core.cache import DateRangeCache
+from rcm.core.config import paths
+from rcm.core.extractor import Extractor
 log = logging.getLogger(__name__)
 
 

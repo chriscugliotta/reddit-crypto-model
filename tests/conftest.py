@@ -10,8 +10,8 @@ if str(path_repo) not in sys.path:
     sys.path.insert(0, str(path_repo))
 
 # Internal imports.
-from cc_idea.core.config import paths
-from cc_idea.utils.log_utils import initialize_logger
+from rcm.core.config import paths
+from rcm.utils.log_utils import initialize_logger
 
 # Logger.
 log = logging.getLogger(__name__)

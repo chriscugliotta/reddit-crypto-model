@@ -1,6 +1,6 @@
 import shutil
-from cc_idea.core.config import paths
-from cc_idea.extractors.yahoo import YahooFinanceExtractor
+from rcm.core.config import paths
+from rcm.extractors.yahoo import YahooFinanceExtractor
 
 
 def test_yahoo_extractor():

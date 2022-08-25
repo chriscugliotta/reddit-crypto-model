@@ -36,7 +36,7 @@ def initialize_logger(log_path: Path = None):
             },
         },
         'loggers': {
-            'cc_idea': {
+            'rcm': {
                 'level': 'DEBUG',
                 'handlers': ['console', 'file'],
             },
@@ -45,6 +45,6 @@ def initialize_logger(log_path: Path = None):
 
     if log_path is None:
         del config['handlers']['file']
-        del config['loggers']['cc_idea']['handlers'][1]
+        del config['loggers']['rcm']['handlers'][1]
 
     logging.config.dictConfig(config)

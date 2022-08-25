@@ -1,7 +1,7 @@
 from datetime import date
-from cc_idea.extractors.reddit import RedditExtractor
-from cc_idea.extractors.yahoo import YahooFinanceExtractor
-from cc_idea.reports.price_history.report import load_report
+from rcm.extractors.reddit import RedditExtractor
+from rcm.extractors.yahoo import YahooFinanceExtractor
+from rcm.reports.price_history.report import load_report
 
 
 

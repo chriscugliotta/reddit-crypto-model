@@ -7,10 +7,10 @@ from pandas import DataFrame
 from textblob import TextBlob
 from typing import Dict, List, Tuple
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from cc_idea.core.cache import DateCache, DateRangeCache
-from cc_idea.core.config import paths, config
-from cc_idea.extractors.reddit import RedditExtractor
-from cc_idea.utils.date_utils import epoch_to_est
+from rcm.core.cache import DateCache, DateRangeCache
+from rcm.core.config import paths, config
+from rcm.extractors.reddit import RedditExtractor
+from rcm.utils.date_utils import epoch_to_est
 log = logging.getLogger(__name__)
 sia = SentimentIntensityAnalyzer()
 
