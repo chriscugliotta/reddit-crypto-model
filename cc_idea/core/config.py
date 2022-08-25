@@ -1,3 +1,4 @@
+import multiprocessing as mp
 import yaml
 from datetime import datetime
 from pathlib import Path
@@ -40,8 +41,8 @@ class Config:
 class ExtractorConfig:
 
     def __init__(self, config: Config):
-        self.yahoo = YahooExtractorConfig(config)
-        self.reddit = RedditExtractorConfig(config)
+        self.yahoo: YahooExtractorConfig = YahooExtractorConfig(config)
+        self.reddit: RedditExtractorConfig = RedditExtractorConfig(config)
 
 
 
@@ -90,7 +91,7 @@ class RedditExtractorConfig:
 class TransformerConfig:
 
     def __init__(self, config: Config):
-        self.sentiment = SentimentTransformerConfig(config)
+        self.sentiment: SentimentTransformerConfig = SentimentTransformerConfig(config)
 
 
 
@@ -98,7 +99,14 @@ class SentimentTransformerConfig:
 
     def __init__(self, config: Config):
         self.chunk_size: int = config._yaml['transformers']['sentiment']['chunk_size']
+        self.processes: int = self._get_processes(config)
 
+    def _get_processes(self, config: Config) -> int:
+        processes = config._yaml['transformers']['sentiment']['processes']
+        if processes == 'auto':
+            return mp.cpu_count()
+        else:
+            return processes
 
 
 paths = Paths()

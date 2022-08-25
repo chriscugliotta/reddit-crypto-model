@@ -22,3 +22,4 @@ extractors:
 transformers:
     sentiment:
         chunk_size: 100
+        processes: auto

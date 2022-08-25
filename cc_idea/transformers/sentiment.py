@@ -8,7 +8,7 @@ from textblob import TextBlob
 from typing import Dict, List, Tuple
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from cc_idea.core.cache import DateCache, DateRangeCache
-from cc_idea.core.config import paths
+from cc_idea.core.config import paths, config
 from cc_idea.extractors.reddit import RedditExtractor
 from cc_idea.utils.date_utils import epoch_to_est
 log = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class SentimentTransformer:
         self.schema: Dict[str, str] = None
         self.unique_key: List[str] = None
 
-    def transform(self, endpoint: str, search: Tuple[str, str], min_score: int, caches: List[DateCache], chunk_size: int = 100) -> DateRangeCache:
+    def transform(self, endpoint: str, search: Tuple[str, str], min_score: int, caches: List[DateCache], chunk_size: int = None) -> DateRangeCache:
         """
         Performs sentiment analysis on Reddit comments or submissions.
 
@@ -88,6 +88,7 @@ class SentimentTransformer:
         frames = []
         chunk = []
         size = 0
+        chunk_size = chunk_size if chunk_size else config.transformers.sentiment.chunk_size
         for i, cache in enumerate(inbound):
             chunk += [cache]
             size += cache.path.stat().st_size
@@ -145,16 +146,16 @@ class SentimentTransformer:
 
         # Start timer.
         start_time = datetime.now()
+        processes = config.transformers.sentiment.processes
 
         # Sentiment analysis is computationally expensive.
         # For big data, it's faster to distribute and parallelize the work across multiple processes.
         # For small data, it's faster to simply use a single process (due to overhead of spawning processes).
-        if len(inputs) < 5000:
+        if len(inputs) < 5000 or processes == 1:
             log.debug(f'Analyzing {len(inputs):,} comments using 1 process.')
             outputs = [self._analyze_comment(x) for x in inputs]
 
         else:
-            processes = int(mp.cpu_count())
             chunk_size = int(len(inputs) / processes) + 1
             log.debug(f'Analyzing {len(inputs):,} comments using {processes} processes.')
             with mp.Pool(processes=processes) as pool:
