@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from pandas import DataFrame
 from textblob import TextBlob
-from typing import List
+from typing import Dict, List, Tuple
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from cc_idea.core.cache import DateCache, DateRangeCache
 from cc_idea.core.config import paths
@@ -19,10 +19,10 @@ sia = SentimentIntensityAnalyzer()
 class SentimentTransformer:
 
     def __init__(self):
-        self.schema = 'TBD'
-        self.unique_key = 'TBD'
+        self.schema: Dict[str, str] = None
+        self.unique_key: List[str] = None
 
-    def transform(self, endpoint: str, filters: dict, caches: List[DateCache], chunk_size: int = 100) -> DateRangeCache:
+    def transform(self, endpoint: str, search: Tuple[str, str], min_score: int, caches: List[DateCache], chunk_size: int = 100) -> DateRangeCache:
         """
         Performs sentiment analysis on Reddit comments or submissions.
 
@@ -48,12 +48,15 @@ class SentimentTransformer:
             endpoint (str):
                 Pushshift API endpoint.  Either `comment` or `submission`.
 
-            filters (Dict[str, str]):
-                Search filters.
-                Examples:  `{word: doge}` or `{min_score: 2, subreddit: dogelore}`.
+            search (Tuple[str, str]):
+                Word or subreddit filter, e.g. `(word, doge)` or `(subreddit, dogelore)`.
+
+            min_score (int):
+                Minimum score filter.
+                All comments (or submissions) with score < `min_score` will be omitted.
 
             caches (List[DateCache]):
-                Cached Pushshift API responses returned by RedditExtractor.
+                Pushshift API responses cached by RedditExtractor.
 
             chunk_size (int):
                 Maximum size (in megabytes) of each chunk.
@@ -63,10 +66,10 @@ class SentimentTransformer:
         """
 
         # Log.
-        log.debug(f'Begin with endpoint = {endpoint}, filters = {filters}, caches = {len(caches)}.')
+        log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, caches = {len(caches)}.')
 
         # Get already-cached date range (if any cache exists).
-        range_cache = DateRangeCache.from_prefix(self._get_cache_prefix(endpoint, filters))
+        range_cache = DateRangeCache.from_prefix(self._get_cache_prefix(endpoint, search, min_score))
 
         # How many inbound days need to be processed?
         inbound = [
@@ -89,7 +92,7 @@ class SentimentTransformer:
             chunk += [cache]
             size += cache.path.stat().st_size
             if size > (chunk_size * 1e6) or i == len(inbound) - 1:
-                df = self._transform_chunk(endpoint, filters, chunk, size, range_cache)
+                df = self._transform_chunk(endpoint, search, min_score, chunk, size)
                 frames += [df]
                 chunk = []
                 size = 0
@@ -99,18 +102,19 @@ class SentimentTransformer:
         range_cache.append(df, 'created_date', min(x.date for x in caches), max(x.date for x in caches))
 
         # Log, return.
-        log.debug(f'Done with endpoint = {endpoint}, filters = {filters}, rows = {len(df):,}.')
+        log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, rows = {len(df):,}.')
         return range_cache
 
-    def _transform_chunk(self, endpoint: str, filters: dict, caches: List[dict], size: int, range_cache: DateRangeCache) -> DataFrame:
+    def _transform_chunk(self, endpoint: str, search: Tuple[str, str], min_score: int, caches: List[dict], size: int) -> DataFrame:
 
         # Log
-        log.debug(f'Begin with endpoint = {endpoint}, filters = {filters}, caches = {len(caches):,}, size = {size / 1e6:.2f} MB.')
+        log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, caches = {len(caches):,}, size = {size / 1e6:.2f} MB.')
 
         # Get inbound records that need to be processed.
         df_comments = RedditExtractor().read(
             endpoint=endpoint,
-            filters=filters,
+            search=search,
+            min_score=min_score,
             min_date=None,
             max_date=None,
             caches=caches,
@@ -201,8 +205,11 @@ class SentimentTransformer:
         assert df['negative'].isnull().sum() == 0, 'Not-null constraint violated.'
         return df
 
-    def _get_cache_prefix(self, endpoint: str, filters: dict) -> Path:
-        """Returns cache path prefix for given endpoint and filter set."""
-        min_score = filters.get('min_score') if filters.get('min_score') else 'null'
-        suffix = ', '.join(f'{k}={v}' for k, v in filters.items() if k != 'min_score')
-        return paths.data / f'reddit_{endpoint}s_sentiment' / f'min_score={min_score}' / suffix
+    def _get_cache_prefix(self, endpoint: str, search: Tuple[str, str], min_score: int) -> Path:
+        """Returns cache path prefix for given endpoint and search filter."""
+        return (
+            paths.data /
+            f'reddit_{endpoint}s_sentiment' /
+            f'min_score={min_score}' /
+            f'{search[0]}={search[1]}'
+        )

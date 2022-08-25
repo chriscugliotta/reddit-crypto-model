@@ -1,10 +1,9 @@
-import json
 import logging
 import pandas
 from datetime import date, datetime, timedelta
 from pandas import DataFrame
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from cc_idea.core.cache import DateCache
 from cc_idea.core.config import paths
 from cc_idea.core.extractor import Extractor
@@ -28,7 +27,7 @@ class RedditExtractor(Extractor):
         }
         self.unique_key: List[str] = ['id']
 
-    def extract(self, endpoint: str, filters: dict, min_date: date, max_date: date, read: bool = False) -> List[DateCache]:
+    def extract(self, endpoint: str, search: Tuple[str, str], min_score: int, min_date: date, max_date: date, read: bool = False) -> List[DateCache]:
         """
         Extracts (and caches) all comments (or submissions) posted within the given search filters.
 
@@ -36,12 +35,15 @@ class RedditExtractor(Extractor):
             endpoint (str):
                 Pushshift API endpoint.  Either `comment` or `submission`.
 
-            filters (Dict[str, str]):
-                Search filters.
-                Examples:  `{word: doge}` or `{min_score: 2, subreddit: dogelore}`.
+            search (Tuple[str, str]):
+                Word or subreddit filter, e.g. `(word, doge)` or `(subreddit, dogelore)`.
+
+            min_score (int):
+                Minimum score filter.
+                All comments (or submissions) with score < `min_score` will be omitted.
 
             min_date, max_date (date):
-                Search time range
+                Date range filter.
                 All comments (or submissions) posted between [min_date, max_date] will be returned.
 
             read (bool):
@@ -52,7 +54,7 @@ class RedditExtractor(Extractor):
         """
 
         # Log.
-        log.debug(f'Begin with endpoint = {endpoint}, filters = {filters}, min_date = {min_date}, max_date = {max_date}.')
+        log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, min_date = {min_date}, max_date = {max_date}.')
 
         # Never load future dates.
         # Never load current date (to prevent stale snapshot in cache).
@@ -60,37 +62,40 @@ class RedditExtractor(Extractor):
 
         # Extract (and cache) one day at a time.
         caches = [
-            self._extract_date(endpoint, filters, min_date + timedelta(days=i))
+            self._extract_and_cache_date(endpoint, search, min_score, min_date + timedelta(days=i))
             for i in range((max_date - min_date).days + 1)
         ]
 
         # Log, return.
-        log.debug(f'Done with endpoint = {endpoint}, filters = {filters}, min_date = {min_date}, max_date = {max_date}, caches = {len(caches):,}.')
-        return caches if not read else self.read(endpoint, filters, min_date, max_date, caches)
+        log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, min_date = {min_date}, max_date = {max_date}, caches = {len(caches):,}.')
+        if read:
+            return self.read(endpoint, search, min_score, min_date, max_date, caches)
+        else:
+            return caches
 
-    def _extract_date(self, endpoint: str, filters: dict, target_date: date) -> DateCache:
+    def _extract_and_cache_date(self, endpoint: str, search: Tuple[str, str], min_score: int, target_date: date) -> DateCache:
         """
         Extracts all comments (or submissions) posted on `target_date` within the given search filters.
 
         Note:
             This function caches all API responses.  A separate local JSON file is created for every
-            `(filters, target_date)` combination.  If a given request is already cached, we skip the
+            `(search, target_date)` combination.  If a given request is already cached, we skip the
             API call.
         """
 
         # Get cache object for upcoming request.
-        cache = DateCache(target_date, self._get_cache_prefix(endpoint, filters))
+        cache = DateCache(target_date, self._get_cache_prefix(endpoint, search, min_score))
 
         # If result is not cached, hit the API and cache the result.
         if not cache.path.is_file():
-            data = self._extract_api(endpoint, filters, date_to_datetime(target_date), date_to_datetime(target_date + timedelta(days=1)))
+            data = self._extract_date(endpoint, search, min_score, date_to_datetime(target_date), date_to_datetime(target_date + timedelta(days=1)))
             cache.save(data)
-            log.debug(f'Done with endpoint = {endpoint}, filters = {filters}, target_date = {target_date}, rows = {sum(x["response"]["rows"] for x in data):,}.')
+            log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, target_date = {target_date}, rows = {sum(x["response"]["rows"] for x in data):,}.')
 
         # Return cache object.
         return cache
 
-    def _extract_api(self, endpoint: str, filters: dict, min_date: datetime, max_date: datetime) -> List[dict]:
+    def _extract_date(self, endpoint: str, search: Tuple[str, str], min_score: int, min_time: datetime, max_time: datetime) -> List[dict]:
         """
         Iteratively queries the Pushshift API, and returns all comments (or submissions) posted
         within the given search filters.
@@ -108,18 +113,18 @@ class RedditExtractor(Extractor):
         # TODO:  On non-EST machine, will need to explicitly declare US/Eastern during all epoch conversions.
 
         results = []
-        batch_min_date = min_date
+        batch_min_time = min_time
         max_iterations = 1000
 
         for i in range(max_iterations):
 
             # Pull batch i.
             params = {
-                'score': '>' + str(filters['min_score'] - 1) if filters.get('min_score') else None,
-                'q': filters.get('word'),
-                'subreddit': filters.get('subreddit'),
-                'after': int(batch_min_date.timestamp()),
-                'before': int(max_date.timestamp()),
+                'score': '>' + min_score if min_score else None,
+                'q': search[1] if search[0] == 'word' else None,
+                'subreddit': search[1] if search[0] == 'subreddit' else None,
+                'after': int(batch_min_time.timestamp()),
+                'before': int(max_time.timestamp()),
                 'size': 100,
                 'sort_type': 'created_utc',
                 'sort': 'asc',
@@ -133,13 +138,13 @@ class RedditExtractor(Extractor):
                 log.debug(f'i = {i}, batch = {len(batch)}, done.')
                 return results
 
-            # Get minimum and maximum dates in batch.
-            batch_min_date = datetime.fromtimestamp(min([x['created_utc'] for x in batch]))
-            batch_max_date = datetime.fromtimestamp(max([x['created_utc'] for x in batch]))
+            # Get minimum and maximum times in batch.
+            batch_min_time = datetime.fromtimestamp(min([x['created_utc'] for x in batch]))
+            batch_max_time = datetime.fromtimestamp(max([x['created_utc'] for x in batch]))
 
             # Estimate total iterations to complete query.
-            total_distance = max_date - min_date
-            distance_per_iteration = (batch_max_date - min_date) / (i + 1)
+            total_distance = max_time - min_time
+            distance_per_iteration = (batch_max_time - min_time) / (i + 1)
             estimated_iterations = total_distance / distance_per_iteration
 
             # Add batch to results.
@@ -148,28 +153,28 @@ class RedditExtractor(Extractor):
                 i,
                 sum(x['response']['rows'] for x in results),
                 len(batch),
-                batch_min_date.strftime('%Y-%m-%d'),
-                batch_min_date.strftime('%H:%M:%S'),
-                batch_max_date.strftime('%H:%M:%S'),
+                batch_min_time.strftime('%Y-%m-%d'),
+                batch_min_time.strftime('%H:%M:%S'),
+                batch_max_time.strftime('%H:%M:%S'),
                 estimated_iterations,
             ))
             i += 1
-            batch_min_date = batch_max_date
+            batch_min_time = batch_max_time
 
             # If maximum number iterations exceeded, stop early.
             if i == max_iterations - 1:
                 log.warning(f'i = {i}, max iterations exceeded.')
                 return results
 
-    def _read(self, endpoint: str, filters: dict, min_date: date = None, max_date: date = None, caches: List[DateCache] = None) -> DataFrame:
+    def _read(self, endpoint: str, search: Tuple[str, str], min_score: int, min_date: date = None, max_date: date = None, caches: List[DateCache] = None) -> DataFrame:
         """Reads previously-cached data into a dataframe."""
 
         # Log.
-        log.debug(f'Begin with endpoint = {endpoint}, filters = {filters}, min_date = {min_date}, max_date = {max_date}, caches = {0 if caches is None else len(caches)}.')
+        log.debug(f'Begin with endpoint = {endpoint}, {search[0]} = {search[1]}, min_date = {min_date}, max_date = {max_date}, caches = {0 if caches is None else len(caches)}.')
 
         # If cache targets not provided, search for them.
         if caches is None:
-            prefix = self._get_cache_prefix(endpoint, filters)
+            prefix = self._get_cache_prefix(endpoint, search, min_score)
             caches = [
                 DateCache(path_to_date(x), prefix)
                 for x in prefix.rglob('*.json.gz')
@@ -185,15 +190,14 @@ class RedditExtractor(Extractor):
         df = pandas.concat(frames, ignore_index=True)
 
         # Log, return.
-        log.debug(f'Done with endpoint = {endpoint}, filters = {filters}, min_date = {min_date}, max_date = {max_date}, caches = {len(caches)}, rows = {len(df):,}.')
+        log.debug(f'Done with endpoint = {endpoint}, {search[0]} = {search[1]}, min_date = {min_date}, max_date = {max_date}, caches = {len(caches)}, rows = {len(df):,}.')
         return df
 
-    def _get_cache_prefix(self, endpoint: str, filters: dict) -> Path:
-        """Returns cache path prefix for given endpoint and filter set.  (Organizes disk storage.)"""
-        min_score = filters.get('min_score') if filters.get('min_score') else 'null'
-        suffix = ', '.join(f'{k}={v}' for k, v in filters.items() if k != 'min_score')
-        return paths.data / f'reddit_{endpoint}s' / f'min_score={min_score}' / suffix
-
-    def _get_cache_key(self, endpoint: str, filters: dict) -> str:
-        """Returns cache dict key for given endpoint and filter set.  (Organizes in-memory storage.)"""
-        return json.dumps({'endpoint': endpoint, 'filters': filters}, sort_keys=True)
+    def _get_cache_prefix(self, endpoint: str, search: Tuple[str, str], min_score: int) -> Path:
+        """Returns cache path prefix for given endpoint and search filter."""
+        return (
+            paths.data /
+            f'reddit_{endpoint}s' /
+            f'min_score={min_score}' /
+            f'{search[0]}={search[1]}'
+        )

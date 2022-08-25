@@ -85,5 +85,5 @@ class YahooFinanceExtractor(Extractor):
         df = df.rename(columns=renames)
 
         # Log, return.
-        log.debug(f'Done:  records = {len(df):,}, symbols = {len(caches):,}.')
+        log.debug(f'Read {len(df):,} records across {len(caches):,} symbol(s).')
         return df

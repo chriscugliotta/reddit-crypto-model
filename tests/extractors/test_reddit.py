@@ -11,7 +11,7 @@ def test_reddit_extractor():
         ('[A, C]', 'cardano', datetime(2021, 1, 1, 0, 0, 0), datetime(2021, 1, 1, 16, 0, 0)),
     ]
     results = {
-        name: RedditExtractor()._extract_api('comment', {'word': word}, min_date, max_date)
-        for name, word, min_date, max_date in time_intervals
+        name: RedditExtractor()._extract_date('comment', ('word', word), None, min_time, max_time)
+        for name, word, min_time, max_time in time_intervals
     }
     assert len(results['[A, C]']) == len(results['[A, B]']) + len(results['[B, C]'])
