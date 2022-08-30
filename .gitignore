@@ -1,5 +1,6 @@
 *.log
 *.parquet
+*.pbix
 *.xlsx
 .ipynb_checkpoints/
 .venv*/

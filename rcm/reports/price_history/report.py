@@ -1,6 +1,5 @@
 import logging
-import pandas as pd
-from pandas import DataFrame, Series
+from pandas import DataFrame
 from rcm.core.config import paths
 from rcm.utils.excel_utils import to_excel
 from rcm.utils.date_utils import epoch_to_est
@@ -8,7 +7,7 @@ log = logging.getLogger(__name__)
 
 
 
-def load_report(df_prices: DataFrame, df_comments: DataFrame) -> DataFrame:
+def run(df_prices: DataFrame, df_comments: DataFrame) -> DataFrame:
     """This report shows historical relationship between comments and prices."""
 
     # Aggregate comments.

@@ -1,7 +1,7 @@
 from datetime import date
 from rcm.extractors.reddit import RedditExtractor
 from rcm.extractors.yahoo import YahooFinanceExtractor
-from rcm.reports.price_history.report import load_report
+from rcm.reports.price_history.report import run
 
 
 
@@ -21,7 +21,7 @@ def test_price_history_report():
         read=True,
     )
 
-    df_report = load_report(df_prices, df_comments)
+    df_report = run(df_prices, df_comments)
     df_report = df_report.set_index('date')
 
     assert round(df_report.loc['2020-01-01']['open'], 6) == 0.002028
