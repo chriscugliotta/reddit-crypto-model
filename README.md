@@ -41,13 +41,13 @@ For this project, the ETL code is organized into [extractors](rcm/extractors) an
 ### Extractors
 
 - [YahooFinanceExtractor](rcm/extractors/yahoo.py):  Extracts price history for each ticker symbol via [Yahoo Finance API](https://github.com/ranaroussi/yfinance).
-- [RedditExtractor](https://github.com/chriscugliotta/reddit-crypto-model/blob/master/rcm/extractors/reddit.py):  Extracts Reddit comments via [Pushshift API](https://github.com/pushshift/api).
+- [RedditExtractor](rcm/extractors/reddit.py):  Extracts Reddit comments via [Pushshift API](https://github.com/pushshift/api).
 
 
 ### Transformers
 
-- [SentimentTransformer](https://github.com/chriscugliotta/reddit-crypto-model/blob/master/rcm/transformers/sentiment.py):  Takes the Reddit comments extracted previously, and passes them through two sentiment analysis libraries:  [VaderSentiment](https://github.com/cjhutto/vaderSentiment) and [TextBlob](https://github.com/sloria/TextBlob).
-- AggregationTransformer:  Not yet implemented.  Aggregates Reddit comment scores and sentiment values up to (date, symbol) level.
+- [SentimentTransformer](rcm/transformers/sentiment.py):  Takes the Reddit comments extracted previously, and passes them through two sentiment analysis libraries:  [VaderSentiment](https://github.com/cjhutto/vaderSentiment) and [TextBlob](https://github.com/sloria/TextBlob).
+- [AggregationTransformer](rcm/transformers/aggregation.py):  Aggregates Reddit comment scores and sentiment values up to (date, symbol) level.
 - SmoothingTransformer:  Not yet implemented.  Calculates moving averages for various time series features.
 
 

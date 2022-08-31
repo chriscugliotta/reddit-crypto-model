@@ -6,6 +6,7 @@ from rcm.core.cache import DateCache, DateRangeCache
 from rcm.core.config import paths, config
 from rcm.extractors.reddit import RedditExtractor
 from rcm.extractors.yahoo import YahooFinanceExtractor
+from rcm.transformers.aggregation import AggregationTransformer
 from rcm.transformers.sentiment import SentimentTransformer
 from rcm.utils.log_utils import initialize_logger
 log = logging.getLogger('rcm')
@@ -58,6 +59,7 @@ def main():
     # Transform.
     data['reddit_comments_sentiment'] = transform_sentiment(data, 'comment')
     data['reddit_submissions_sentiment'] = transform_sentiment(data, 'submission')
+    data['reddit_aggregations'] = AggregationTransformer().transform(data)
 
     # Log.
     log.info('Done.')

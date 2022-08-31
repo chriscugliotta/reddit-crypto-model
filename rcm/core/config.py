@@ -1,6 +1,6 @@
 import multiprocessing as mp
 import yaml
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 from typing import Dict, List
 from rcm.core.symbol import Symbol
@@ -64,6 +64,8 @@ class YahooExtractorConfig:
 class RedditExtractorConfig:
 
     def __init__(self, config: Config):
+        self.min_date: date = datetime.strptime(config._yaml['extractors']['reddit']['min_date'], '%Y-%m-%d').date()
+        self.max_date: date = datetime.strptime(config._yaml['extractors']['reddit']['max_date'], '%Y-%m-%d').date()
         self.queries: List[Dict] = self._get_queries(config)
 
     def _get_queries(self, config: Config) -> List[Dict]:
@@ -81,8 +83,8 @@ class RedditExtractorConfig:
                     'endpoint': query['endpoint'],
                     'search': (search_type, v),
                     'min_score': query['min_score'],
-                    'min_date': datetime.strptime(config._yaml['extractors']['reddit']['min_date'], '%Y-%m-%d').date(),
-                    'max_date': datetime.strptime(config._yaml['extractors']['reddit']['max_date'], '%Y-%m-%d').date(),
+                    'min_date': self.min_date,
+                    'max_date': self.max_date,
                 })
         return queries
 
