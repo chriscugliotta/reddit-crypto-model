@@ -1,5 +1,7 @@
 # reddit-crypto-model
 
+> **DISCLAIMER:**  Personally, I am very risk-averse, and do not day-trade or invest in cryptocurrencies.  (No disrespect to those that do.)  I don't actually expect this algorithm to be profitable.  It is just for fun.
+
 This project attempts to use sentiment analysis on Reddit comments to predict cryptocurrency (and memestock) prices.  Perhaps a foolhardy endeavor, but the idea arguably has some merit, because crypto prices are highly speculative and psychologically-driven.  Reddit is one of the highest traffic websites in the USA, and it has several active cryptocurrency communities.  The hope is that measuring the "Reddit hivemind" will glean some insight into the momentum of prices.
 
 In short, this project uses the [Pushshift API](https://github.com/pushshift/api) to gather all Reddit comments (worldwide across 2020-2021) mentioning a cryptocurrency [ticker symbol](https://coinmarketcap.com/alexandria/glossary/ticker-symbol), passes those comments through a sentiment analysis engine, and uses the data to train a time series model for each ticker symbol.
