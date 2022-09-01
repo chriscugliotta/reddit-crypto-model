@@ -9,6 +9,7 @@ from typing import Dict, List, Tuple
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from rcm.core.cache import DateCache, DateRangeCache
 from rcm.core.config import paths, config
+from rcm.core.transformer import Transformer
 from rcm.extractors.reddit import RedditExtractor
 from rcm.utils.date_utils import epoch_to_est
 log = logging.getLogger(__name__)
@@ -16,11 +17,27 @@ sia = SentimentIntensityAnalyzer()
 
 
 
-class SentimentTransformer:
+class SentimentTransformer(Transformer):
 
     def __init__(self):
-        self.schema: Dict[str, str] = None
-        self.unique_key: List[str] = None
+        self.schema: Dict[str, str] = {
+            'id': 'string',
+            'created_utc': 'float64',
+            'created_date': 'datetime64',
+            'author': 'string',
+            'subreddit': 'string',
+            'title': 'string',
+            'body': 'string',
+            'score': 'int64',
+            'negative': 'float64',
+            'neutral': 'float64',
+            'positive': 'float64',
+            'compound': 'float64',
+            'polarity': 'float64',
+            'subjectivity': 'float64',
+        }
+        self.unique_key: List[str] = ['id']
+        self.not_null: List[str] = ['negative']
 
     def transform(self, endpoint: str, search: Tuple[str, str], min_score: int, caches: List[DateCache], chunk_size: int = None) -> DateRangeCache:
         """
@@ -130,9 +147,12 @@ class SentimentTransformer:
         # Perform sentiment analysis.
         df_sentiments = self._analyze_comments(df_comments, column)
 
-        # Join.
-        return (df_comments
-            .pipe(self._join_sentiments, df_sentiments)
+        # Join sentiments onto comments.
+        return (
+            df_comments
+            .assign(created_date=lambda x: epoch_to_est(x['created_utc']).dt.floor('D'))
+            .join(df_sentiments)
+            .pipe(self._validate)
         )
 
     def _analyze_comments(self, df_comments: DataFrame, column: str) -> DataFrame:
@@ -180,32 +200,6 @@ class SentimentTransformer:
         vader = sia.polarity_scores(text)
         blob = TextBlob(text)
         return (index, vader['neg'], vader['neu'], vader['pos'], vader['compound'], blob.sentiment.polarity, blob.sentiment.subjectivity)
-
-    def _join_sentiments(self, df_comments: DataFrame, df_sentiments: DataFrame) -> DataFrame:
-        """Joins sentiments onto original comments dataframe."""
-
-        df = (df_comments
-            .assign(**{
-                'created_date': lambda df: epoch_to_est(df['created_utc']).dt.floor('D'),
-            })
-            .loc[:, [
-                'id',
-                'created_utc',
-                'created_date',
-                'author',
-                'subreddit',
-                'title',
-                'body',
-                'score',
-            ]]
-            .join(df_sentiments)
-        )
-
-        # TODO:  Move validation logic into a base class.
-        assert len(df) == len(df_comments), 'Row count changed.'
-        assert df_comments.shape[0] == df_comments['id'].drop_duplicates().shape[0], 'Unique key violated.'
-        assert df['negative'].isnull().sum() == 0, 'Not-null constraint violated.'
-        return df
 
     def _get_cache_prefix(self, endpoint: str, search: Tuple[str, str], min_score: int) -> Path:
         """Returns cache path prefix for given endpoint and search filter."""

@@ -43,6 +43,7 @@ class AggregationTransformer(Transformer):
             'search',
             'created_date',
         ]
+        self.not_null: List[str] = []
 
     def _transform(self, data: Dict) -> DataFrame:
         """Aggregates Reddit comments and submissions up to (endpoint, search, date) level."""

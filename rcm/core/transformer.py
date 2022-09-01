@@ -14,6 +14,7 @@ class Transformer:
     def __init__(self):
         self.schema: Dict[str, str] = None
         self.unique_key: List[str] = None
+        self.not_null: List[str] = None
 
     def transform(self, *args, **kwargs) -> DataFrame:
         df = self._transform(*args, **kwargs)
@@ -38,5 +39,11 @@ class Transformer:
         if self.unique_key is not None:
             if len(df) != len(df[self.unique_key].drop_duplicates()):
                 raise Exception('Unique key violated.')
+
+        # Validate not-null constraints.
+        if self.not_null is not None:
+            for column in self.not_null:
+                if df[column].isnull().sum() > 0:
+                    raise Exception(f'Not-null constraint violated:  {column}.')
 
         return df
