@@ -73,7 +73,7 @@ class AggregationTransformer(Transformer):
         cache.overwrite(df, 'created_date', min_date, max_date)
 
         # Log, return.
-        log.info(f'Done with rows = {len(df):,}.')
+        log.info(f'Done with row count = {len(df):,}.')
         return df
 
     def _transform_chunk(self, endpoint: str, search: Tuple[str, str], df: DataFrame) -> DataFrame:
