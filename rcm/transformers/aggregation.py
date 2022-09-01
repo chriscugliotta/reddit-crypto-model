@@ -31,7 +31,7 @@ class AggregationTransformer(Transformer):
             'wsum_negative': 'float',
             'wsum_compound': 'float',
             'wsum_polarity': 'float',
-            'wavg_subjectivity': 'float',
+            'wsum_subjectivity': 'float',
             'wavg_positive': 'float',
             'wavg_negative': 'float',
             'wavg_compound': 'float',
